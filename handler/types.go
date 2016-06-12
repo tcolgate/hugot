@@ -30,7 +30,6 @@ var (
 	ErrAskNicely    = errors.New("potentially dangerous must ask nicely")
 	ErrUnAuthorized = errors.New("you are not orthorized to perform this action")
 	ErrNeedsPrivacy = errors.New("potentially dangerous must ask nicely")
-	ErrBadCLI       = errors.New("coul not process as command line")
 )
 
 type HearHandlerFunc func(send chan *message.Message, msg *message.Message)
@@ -45,13 +44,11 @@ type Handler interface {
 	Start(send chan *message.Message) // Triggered when the bot is ready
 	Handle(send chan *message.Message, m *message.Message) error
 	Hears() HearMap
-	BuildFlags() *flag.FlagSet
 }
 
 type SetupFunc func() error
 type StartFunc func(chan *message.Message) error
 type HandleFunc func(chan *message.Message, *message.Message) error
-type BuildFlagsFunc func() *flag.FlagSet
 
 type CLIHandler interface {
 	Handler

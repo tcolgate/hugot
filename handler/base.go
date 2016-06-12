@@ -18,7 +18,6 @@
 package handler
 
 import (
-	"flag"
 	"log"
 	"runtime"
 	"strings"
@@ -32,10 +31,9 @@ type base struct {
 	help        string
 	hears       HearMap
 
-	setup      SetupFunc
-	start      StartFunc
-	handle     HandleFunc
-	buildflags BuildFlagsFunc
+	setup  SetupFunc
+	start  StartFunc
+	handle HandleFunc
 }
 
 type option func(*base) error
@@ -134,20 +132,6 @@ func Handle(f HandleFunc) option {
 func (h *base) Handle(send chan *message.Message, m *message.Message) error {
 	if h.handle != nil {
 		return h.handle(send, m)
-	}
-	return nil
-}
-
-func BuildFlags(f BuildFlagsFunc) option {
-	return func(p *base) error {
-		p.buildflags = f
-		return nil
-	}
-}
-
-func (h *base) BuildFlags() *flag.FlagSet {
-	if h.buildflags != nil {
-		return h.buildflags()
 	}
 	return nil
 }

@@ -18,7 +18,7 @@
 package handlers
 
 import (
-	"flag"
+	"time"
 
 	"github.com/tcolgate/hugot/handler"
 	"github.com/tcolgate/hugot/message"
@@ -32,19 +32,18 @@ func New() handler.Handler {
 	h, _ := handler.New(
 		handler.Description("all being well, says PONG"),
 		handler.Handle(Handle),
-		handler.BuildFlags(BuildFlags),
 	)
 	return h
 }
 
-func BuildFlags() *flag.FlagSet {
-	fs := flag.NewFlagSet("testcli", flag.PanicOnError)
-	fs.String("t", "boo", "a test flag")
-	return fs
-}
-
 func Handle(reply chan *message.Message, m *message.Message) error {
-	reply <- m.Replyf("PONG! val: %v args: %#v", m.Lookup("t").Value.String(), m.Args())
+	t := m.String("arg", "", "A string argument")
+	i := m.Int("num", 0, "An int argument")
+	d := m.Duration("time", 1*time.Hour, "A duration argument")
+	if err := m.Parse(); err != nil {
+		return err
+	}
 
+	reply <- m.Replyf("testclivals: (\"%v\",%v,%v)  args: %#v", *t, *i, *d, m.Args())
 	return nil
 }

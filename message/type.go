@@ -18,9 +18,11 @@
 package message
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 
+	"github.com/mattn/go-shellwords"
 	"github.com/nlopes/slack"
 )
 
@@ -37,7 +39,10 @@ type Message struct {
 	ToBot   bool
 
 	*flag.FlagSet
+	FlagData interface{}
 }
+
+var ErrBadCLI = errors.New("coul not process as command line")
 
 func (m *Message) Reply(txt string) *Message {
 	out := *m
@@ -55,4 +60,13 @@ func (m *Message) Reply(txt string) *Message {
 
 func (m *Message) Replyf(s string, is ...interface{}) *Message {
 	return m.Reply(fmt.Sprintf(s, is...))
+}
+
+func (m *Message) Parse() error {
+	args, err := shellwords.Parse(m.Text)
+	if err != nil {
+		return err
+	}
+
+	return m.FlagSet.Parse(args[1:])
 }

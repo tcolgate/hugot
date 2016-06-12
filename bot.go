@@ -18,8 +18,8 @@
 package minion
 
 import (
-	"bytes"
 	"errors"
+	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -30,7 +30,6 @@ import (
 	"github.com/tcolgate/hugot/handler"
 	"github.com/tcolgate/hugot/message"
 
-	"github.com/mattn/go-shellwords"
 	"github.com/nlopes/slack"
 )
 
@@ -356,31 +355,8 @@ func (b *Bot) dispatch(ev *slack.MessageEvent) {
 							}
 						}()
 
-						if m.FlagSet = h.BuildFlags(); m.FlagSet == nil {
-							err = h.Handle(b.Sender, &m)
-						} else {
-							log.Println("Handler supports cli", m.FlagSet)
-							log.Println("Parsing ", m.Text)
-
-							args, err := shellwords.Parse(m.Text)
-							if err != nil {
-								err = handler.ErrBadCLI
-								return
-							}
-							log.Println("ARGS ", args)
-
-							out := &bytes.Buffer{}
-							m.FlagSet.SetOutput(out)
-							err = m.FlagSet.Parse(args[1:])
-							log.Println("buf ", string(out.Bytes()))
-							if err != nil {
-								err = handler.ErrBadCLI
-								return
-							}
-
-							log.Println(*m.FlagSet)
-							err = h.Handle(b.Sender, &m)
-						}
+						m.FlagSet = flag.NewFlagSet(cmd, flag.ContinueOnError)
+						err = h.Handle(b.Sender, &m)
 
 						return
 					}(h, &m)
