@@ -184,6 +184,10 @@ func (b *Bot) run() {
 	wsAPI := b.api.NewRTM()
 	b.Receiver = wsAPI.IncomingEvents
 
+	for _, h := range handler.Handlers {
+		go h.Start(b.Sender)
+	}
+
 	go wsAPI.ManageConnection()
 	go func(api *slack.Client, sender chan *message.Message) {
 		for {
