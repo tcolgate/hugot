@@ -22,13 +22,12 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"os"
 	"regexp"
 	"strings"
-	"sync"
 
 	"github.com/tcolgate/hugot/handler"
 	"github.com/tcolgate/hugot/message"
+	"github.com/tcolgate/hugot/slackcache"
 
 	"github.com/nlopes/slack"
 )
@@ -42,15 +41,12 @@ type Bot struct {
 
 	dirPat *regexp.Regexp
 	api    *slack.Client
+	*slackcache.Cache
 
 	debug bool
 
 	Sender   chan *message.Message
 	Receiver chan slack.RTMEvent
-
-	cacheLock sync.Mutex
-	userCache map[string]*slack.User
-	chanCache map[string]*slack.Channel
 }
 
 type option func(*Bot) error
@@ -94,29 +90,27 @@ func (b *Bot) Nick() string {
 
 func (b *Bot) Start() {
 	if b.Token() == "" {
-		log.Println("Slack Token must be set")
-		os.Exit(1)
+		log.Fatalln("Slack Token must be set")
 	}
 
-	//b.debug = c.Bool("debug")
-
-	//if c.String("log") != "-" {
-	//		hupablelog.SetupLog(c.String("log"))
-	//}
-
 	for _, h := range handler.Handlers {
-		log.Println("calling setup for %s: %v", h.Names()[0], h.Setup)
-		err := h.Setup()
-		if err != nil {
-			log.Fatalf("Error in handler %s: %s", h.Names()[0], err.Error)
-			os.Exit(1)
-			return
-		}
+		go func(h handler.Handler) {
+			defer func() {
+				if r := recover(); r != nil {
+					log.Printf("%s Setup() paniced: %v", h.Names()[0], r)
+				}
+			}()
+			log.Println("calling setup for %s: %v", h.Names()[0], h.Setup)
+			err := h.Setup()
+			if err != nil {
+				log.Fatalf("Error in handler %s: %s", h.Names()[0], err.Error)
+			}
+		}(h)
 	}
 
 	b.api = slack.New(b.Token())
-	log.Println(b.api)
 	b.api.SetDebug(b.debug)
+	b.Cache = slackcache.New(b.api)
 
 	us, _ := b.api.GetUsers()
 
@@ -134,48 +128,6 @@ func (b *Bot) Start() {
 	b.dirPat = regexp.MustCompile(fmt.Sprintf("(?m)^(!|(@?%s|<@%s>)[:, ]?)(.*)", b.nick, b.id))
 
 	b.run()
-}
-
-func (b *Bot) GetUser(id string) (*slack.User, error) {
-	b.cacheLock.Lock()
-	defer b.cacheLock.Unlock()
-
-	if b.userCache == nil {
-		b.userCache = make(map[string]*slack.User)
-	}
-
-	if u, ok := b.userCache[id]; ok {
-		return u, nil
-	}
-
-	u, err := b.api.GetUserInfo(id)
-	if err != nil {
-		return nil, err
-	}
-
-	b.userCache[id] = u
-	return u, nil
-}
-
-func (b *Bot) GetChannel(id string) (*slack.Channel, error) {
-	b.cacheLock.Lock()
-	defer b.cacheLock.Unlock()
-
-	if b.chanCache == nil {
-		b.chanCache = make(map[string]*slack.Channel)
-	}
-
-	if c, ok := b.chanCache[id]; ok {
-		return c, nil
-	}
-
-	c, err := b.api.GetChannelInfo(id)
-	if err != nil {
-		return nil, err
-	}
-
-	b.chanCache[id] = c
-	return c, nil
 }
 
 func (b *Bot) run() {

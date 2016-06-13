@@ -39,7 +39,6 @@ type Message struct {
 	ToBot   bool
 
 	*flag.FlagSet
-	FlagData interface{}
 }
 
 var ErrBadCLI = errors.New("coul not process as command line")
