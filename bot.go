@@ -145,14 +145,7 @@ func (b *Bot) run() {
 		for {
 			select {
 			case msg := <-sender:
-				if msg.Text != "" && msg.ChannelID != "" {
-					/*
-						  // The RTM api doesn't support attachments, and that's
-							// just no fun
-							smsg := wsAPI.NewOutgoingMessage(msg.Text, msg.ChannelID)
-							smsg.Attachments = attchs
-							wsAPI.SendMessage(smsg)
-					*/
+				if (msg.Text != "" || len(msg.Attachments) > 0) && msg.ChannelID != "" {
 					params := slack.NewPostMessageParameters()
 					params.AsUser = false
 					params.Attachments = msg.Attachments
