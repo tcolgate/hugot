@@ -18,7 +18,6 @@
 package handler
 
 import (
-	"log"
 	"runtime"
 	"strings"
 
@@ -41,7 +40,6 @@ type option func(*base) error
 func New(opts ...option) (Handler, error) {
 	var err error
 	b := &base{names: []string{defaultName()}}
-	log.Println(b)
 	for _, opt := range opts {
 		if err = opt(b); err != nil {
 			return nil, err

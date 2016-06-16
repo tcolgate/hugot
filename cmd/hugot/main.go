@@ -19,9 +19,9 @@ package main
 
 import (
 	"flag"
-	"log"
 	"os"
 
+	"github.com/golang/glog"
 	bot "github.com/tcolgate/hugot"
 	_ "github.com/tcolgate/hugot/handler/help"
 	_ "github.com/tcolgate/hugot/handler/ping"
@@ -40,9 +40,11 @@ func main() {
 		bot.Nick(*nick),
 	)
 	if err != nil {
-		log.Fatal(err.Error())
+		glog.Fatal(err.Error())
 	}
 
-	log.Println(bot)
 	bot.Start()
+	if err != nil {
+		glog.Fatal(err.Error())
+	}
 }

@@ -21,10 +21,10 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"log"
 	"regexp"
 	"strings"
 
+	"github.com/golang/glog"
 	"github.com/tcolgate/hugot/handler"
 	"github.com/tcolgate/hugot/message"
 	"github.com/tcolgate/hugot/slackcache"
@@ -42,8 +42,6 @@ type Bot struct {
 	dirPat *regexp.Regexp
 	api    *slack.Client
 	*slackcache.Cache
-
-	debug bool
 
 	Sender   chan *message.Message
 	Receiver chan slack.RTMEvent
@@ -88,28 +86,30 @@ func (b *Bot) Nick() string {
 	return b.nick
 }
 
-func (b *Bot) Start() {
+func (b *Bot) Start() error {
 	if b.Token() == "" {
-		log.Fatalln("Slack Token must be set")
+		return errors.New("Slack Token must be set")
 	}
 
 	for _, h := range handler.Handlers {
 		go func(h handler.Handler) {
 			defer func() {
 				if r := recover(); r != nil {
-					log.Printf("%s Setup() paniced: %v", h.Names()[0], r)
+					glog.Infof("%s Setup() paniced: %v", h.Names()[0], r)
 				}
 			}()
-			log.Println("calling setup for %s: %v", h.Names()[0], h.Setup)
+			glog.Infoln("calling setup for %s: %v", h.Names()[0], h.Setup)
 			err := h.Setup()
 			if err != nil {
-				log.Fatalf("Error in handler %s: %s", h.Names()[0], err.Error)
+				glog.Fatalf("Error in handler %s: %s", h.Names()[0], err.Error)
 			}
 		}(h)
 	}
 
 	b.api = slack.New(b.Token())
-	b.api.SetDebug(b.debug)
+	if glog.V(3) {
+		b.api.SetDebug(true)
+	}
 	b.Cache = slackcache.New(b.api)
 
 	us, _ := b.api.GetUsers()
@@ -122,12 +122,13 @@ func (b *Bot) Start() {
 	}
 
 	if b.id == "" {
-		log.Fatalf("Could not locate bot's user ID")
+		return errors.New("Could not locate bot's user ID")
 	}
 
 	b.dirPat = regexp.MustCompile(fmt.Sprintf("(?m)^(!|(@?%s|<@%s>)[:, ]?)(.*)", b.nick, b.id))
 
 	b.run()
+	return nil
 }
 
 func (b *Bot) run() {
@@ -154,10 +155,10 @@ func (b *Bot) run() {
 					//					params.Parse = "none"
 					_, _, err := api.PostMessage(msg.ChannelID, msg.Text, params)
 					if err != nil {
-						log.Println("SEND ERROR: ", err.Error())
+						glog.Infoln("SEND ERROR: ", err.Error())
 					}
 				} else {
-					log.Println("Attempt to send empty message")
+					glog.Infoln("Attempt to send empty message")
 				}
 			}
 		}
@@ -186,8 +187,8 @@ func (b *Bot) run() {
 }
 
 func (b *Bot) Debugf(s string, is ...interface{}) {
-	if b.debug {
-		log.Printf(s, is...)
+	if glog.V(3) {
+		glog.Infof(s, is...)
 	}
 }
 
@@ -200,25 +201,20 @@ func (b *Bot) dispatch(ev *slack.MessageEvent) {
 
 	var private, tobot bool
 	var c *slack.Channel
-	log.Println(*ev)
-
-	//log.Println("bot.id ", b.Id)
-	//log.Println("ev.id ", ev.UserId)
-	//log.Println("ev.username ", ev.Username)
-	//log.Println("ev.msg.id ", ev.Msg.UserId)
+	glog.Infoln(*ev)
 
 	// We ignore message from our own ID
 	if ev.User == b.id || ev.Username == b.nick {
-		log.Println("ignoring messagr from us, ", *ev)
+		glog.Infoln("ignoring messagr from us, ", *ev)
 		return
 	}
 
 	u, err := b.GetUser(ev.User)
 	if err != nil {
-		log.Println("could not lookgup user ev.UserId")
+		glog.Infoln("could not lookgup user ev.UserId")
 		return
 	}
-	log.Println("u.name ", u.Name)
+	glog.Infoln("u.name ", u.Name)
 
 	txt := ev.Msg.Text
 
@@ -322,7 +318,7 @@ func (b *Bot) dispatch(ev *slack.MessageEvent) {
 		if hrs := h.Hears(); cmd != "help" && hrs != nil {
 			go func(h handler.Handler, hrs handler.HearMap, msg *message.Message) {
 				for hr, f := range hrs {
-					log.Printf("%#v", (m))
+					glog.Infof("%#v", (m))
 					if hr.MatchString(m.Text) {
 						f(b.Sender, msg)
 					}
