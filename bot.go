@@ -107,9 +107,9 @@ func (b *Bot) Start() error {
 	}
 
 	b.api = slack.New(b.Token())
-	if glog.V(3) {
-		b.api.SetDebug(true)
-	}
+	//if glog.V(3) {
+	//	b.api.SetDebug(true)
+	//}
 	b.Cache = slackcache.New(b.api)
 
 	us, _ := b.api.GetUsers()
