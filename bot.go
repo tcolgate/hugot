@@ -167,20 +167,15 @@ func (b *Bot) run() {
 	for {
 		select {
 		case msg := <-b.Receiver:
-			fmt.Print("Event Received: ")
+			b.Debugf("event received: %+v", msg.Data)
 			switch msg.Data.(type) {
 			case slack.HelloEvent:
-				// Ignore hello
+			case *slack.PresenceChangeEvent:
+			case slack.LatencyReport:
 			case *slack.MessageEvent:
 				b.dispatch(msg.Data.(*slack.MessageEvent))
-			case *slack.PresenceChangeEvent:
-				a := msg.Data.(*slack.PresenceChangeEvent)
-				fmt.Printf("Presence Change: %v\n", a)
-			case slack.LatencyReport:
-				a := msg.Data.(slack.LatencyReport)
-				fmt.Printf("Current latency: %v\n", a.Value)
 			default:
-				fmt.Printf("Unexpected: %v\n", msg.Data)
+				glog.Infof("Unexpected: %v\n", msg.Data)
 			}
 		}
 	}
