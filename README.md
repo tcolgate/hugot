@@ -1,12 +1,9 @@
 # Hugot
 
-<aside class="notice">
-This code is a total train wreck right now
-</aside>
-
-Hugot is a bot for the slack chat network.
+Hugot is a package for building chat bots. It is inspired
+by Go's http stdlib package.
 
 - Currently slack only
 - Simple to write handlers.
-- Handlers can use the Go flags package, avoiding regex hell
-
+- Support for handlers using the Go flags package to build up commands
+  avoiding regex hell
