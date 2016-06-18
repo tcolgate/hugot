@@ -21,6 +21,7 @@ import (
 	"context"
 	"errors"
 
+	"github.com/tcolgate/hugot/adapter"
 	"github.com/tcolgate/hugot/message"
 )
 
@@ -33,14 +34,14 @@ var (
 
 type SetupFunc func() error
 type StartFunc func(chan *message.Message) error
-type HandleFunc func(ctx context.Context, s message.Sender, m *message.Message)
+type HandleFunc func(ctx context.Context, s adapter.Sender, m *message.Message)
 
 type Handler interface {
-	Handle(ctx context.Context, s message.Sender, m *message.Message)
+	Handle(ctx context.Context, s adapter.Sender, m *message.Message)
 }
 
 type BackgroundHandler interface {
-	BackgroundHandle(ctx context.Context, s message.Sender)
+	BackgroundHandle(ctx context.Context, s adapter.Sender)
 }
 
 //type HearHandlerFunc func(send chan *message.Message, msg *message.Message)

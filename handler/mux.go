@@ -21,6 +21,7 @@ import (
 	"context"
 	"sync"
 
+	"github.com/tcolgate/hugot/adapter"
 	"github.com/tcolgate/hugot/message"
 )
 
@@ -42,7 +43,7 @@ type Mux struct {
 	handlers map[string]Handler
 }
 
-func (mx *Mux) Handle(ctx context.Context, w message.Sender, m *message.Message) {
+func (mx *Mux) Handle(ctx context.Context, w adapter.Sender, m *message.Message) {
 	hs, _ := mx.Handlers(m)
 	for _, h := range hs {
 		go h.Handle(ctx, w, m)

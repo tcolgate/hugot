@@ -1,15 +1,23 @@
 package adapter
 
-import "github.com/tcolgate/hugot/message"
+import (
+	"context"
+
+	"github.com/tcolgate/hugot/message"
+)
 
 type Receiver interface {
 	Receive() <-chan *message.Message
+}
+
+type Sender interface {
+	Send(ctx context.Context, m *message.Message)
 }
 
 type User string
 type Channel string
 
 type Adapter interface {
-	message.Sender
+	Sender
 	Receiver
 }

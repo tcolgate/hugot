@@ -21,6 +21,7 @@ import (
 	"context"
 
 	"github.com/golang/glog"
+	"github.com/tcolgate/hugot/adapter"
 	"github.com/tcolgate/hugot/handler"
 	"github.com/tcolgate/hugot/message"
 )
@@ -36,7 +37,7 @@ func New() handler.Handler {
 	return &ping{}
 }
 
-func (*ping) Handle(ctx context.Context, s message.Sender, m *message.Message) {
+func (*ping) Handle(ctx context.Context, s adapter.Sender, m *message.Message) {
 	glog.Info("Got ping ", *m)
 	s.Send(ctx, m.Reply("PONG!"))
 }

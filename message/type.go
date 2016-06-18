@@ -18,7 +18,6 @@
 package message
 
 import (
-	"context"
 	"errors"
 	"flag"
 	"fmt"
@@ -44,10 +43,6 @@ type Message struct {
 }
 
 var ErrBadCLI = errors.New("coul not process as command line")
-
-type Sender interface {
-	Send(ctx context.Context, m *Message)
-}
 
 func (m *Message) Reply(txt string) *Message {
 	out := *m
