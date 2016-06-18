@@ -115,9 +115,16 @@ func (s *slack) Receive() <-chan *message.Message {
 		select {
 		case m := <-s.receiver:
 			switch ev := m.Data.(type) {
-			case client.HelloEvent:
+			case *client.HelloEvent:
+			case *client.UserTypingEvent:
+			case *client.ReconnectUrlEvent:
+			case *client.ConnectingEvent:
+				glog.Infof("Connecting")
+			case *client.ConnectedEvent:
+				glog.Infof("Connected")
 			case *client.PresenceChangeEvent:
-			case client.LatencyReport:
+			case *client.LatencyReport:
+				glog.Infof("Latency: %v", ev.Value)
 			case *client.MessageEvent:
 				m := s.slackMsgToHugot(ev)
 				if m == nil {
@@ -126,7 +133,7 @@ func (s *slack) Receive() <-chan *message.Message {
 				out <- m
 				return out
 			default:
-				glog.Infof("Unexpected: %v\n", m.Data)
+				glog.Infof("Unexpected: %T %v\n", m.Data, m.Data)
 			}
 		}
 	}
