@@ -20,6 +20,7 @@ package handler
 import (
 	"context"
 	"errors"
+	"regexp"
 
 	"github.com/tcolgate/hugot/adapter"
 	"github.com/tcolgate/hugot/message"
@@ -42,6 +43,13 @@ type Handler interface {
 
 type BackgroundHandler interface {
 	BackgroundHandle(ctx context.Context, s adapter.Sender)
+}
+
+type HearsHandler interface {
+	Hears() []*regexp.Regexp
+}
+
+type CommandHandler interface {
 }
 
 //type HearHandlerFunc func(send chan *message.Message, msg *message.Message)

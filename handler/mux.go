@@ -19,6 +19,7 @@ package handler
 
 import (
 	"context"
+	"regexp"
 	"sync"
 
 	"github.com/tcolgate/hugot/adapter"
@@ -43,16 +44,44 @@ type Mux struct {
 	handlers map[string]Handler
 }
 
+func (mx *Mux) BackgroundHandler(ctx context.Context, w adapter.Sender) {
+	mx.RLock()
+	defer mx.RUnlock()
+
+	for _, h := range mx.handlers {
+		if bh, ok := h.(BackgroundHandler); ok {
+			go bh.BackgroundHandle(ctx, w)
+		}
+	}
+}
+
 func (mx *Mux) Handle(ctx context.Context, w adapter.Sender, m *message.Message) {
+	mx.RLock()
+	defer mx.RUnlock()
+
 	hs, _ := mx.Handlers(m)
 	for _, h := range hs {
 		go h.Handle(ctx, w, m)
 	}
 }
 
+func (mx *Mux) Hears() []*regexp.Regexp {
+	mx.RLock()
+	defer mx.RUnlock()
+
+	hrs := []*regexp.Regexp{}
+	for _, h := range mx.handlers {
+		if hh, ok := h.(HearsHandler); ok {
+			hrs = append(hrs, hh.Hears()...)
+		}
+	}
+	return hrs
+}
+
 func (mx *Mux) Handlers(m *message.Message) ([]Handler, []string) {
 	mx.RLock()
 	defer mx.RUnlock()
+
 	ns := []string{}
 	hs := []Handler{}
 	for n, h := range mx.handlers {
@@ -74,3 +103,78 @@ func (mx *Mux) Add(s []string, h Handler) error {
 
 	return nil
 }
+
+/*
+	if m.Private {
+		b.Debugf("Handling private message from %v: %v", m.From.Name, m.Text)
+	} else {
+		b.Debugf("Handling message in %v from %v: %v", m.Channel.Name, m.From.Name, m.Text)
+	}
+
+	run := false
+	var cmd string
+	tokens := strings.Fields(m.Text)
+	if len(tokens) > 0 {
+		cmd = tokens[0]
+	}
+
+	var cmds []string
+	for _, h := range handler.Handlers {
+		if m.ToBot {
+			names := h.Names()
+			cmds = append(cmds, names[0])
+			for _, n := range names {
+				if n == cmd {
+					go func(h handler.Handler, msg *message.Message) {
+						var err error
+						defer func() {
+							if r := recover(); r != nil {
+								b.Send(m.Replyf("Handler paniced, %v", r))
+								return
+							}
+
+							switch err {
+							case nil, handler.ErrIgnore:
+							case handler.ErrAskNicely:
+								b.Send(m.Reply("You should ask Nicely"))
+							case handler.ErrUnAuthorized:
+								b.Send(m.Reply("You are not authorized to do that"))
+							case handler.ErrNeedsPrivacy:
+								b.Send(m.Reply("You should ask that in private"))
+							default:
+								b.Send(m.Replyf("error, %v", err.Error()))
+							}
+						}()
+
+						err = h.Handle(b.Sender, &m)
+
+						return
+					}(h, &m)
+					run = true
+					break
+				}
+			}
+		}
+
+		// If this is not a call for help we'll check all the Hear patterns
+		// We have to ignore any message not directly send to us on private channels.
+		// All messages sent via the API (not the websocket API), will show us as
+		// being from the user we are chatting with EVEN IF WE SENT THEM.
+		if hrs := h.Hears(); cmd != "help" && hrs != nil {
+			go func(h handler.Handler, hrs handler.HearMap, msg *message.Message) {
+				for hr, f := range hrs {
+					glog.Infof("%#v", (m))
+					if hr.MatchString(m.Text) {
+						f(b.Sender, msg)
+					}
+				}
+			}(h, hrs, &m)
+		}
+	}
+
+	if m.ToBot && !run {
+		cmdList := strings.Join(cmds, ",")
+		b.Send(m.Replyf("Unknown command '%s', known commands are: %s", cmd, cmdList))
+	}
+}
+*/
