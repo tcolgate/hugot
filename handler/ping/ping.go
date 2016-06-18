@@ -18,24 +18,25 @@
 package handlers
 
 import (
+	"context"
+
+	"github.com/golang/glog"
 	"github.com/tcolgate/hugot/handler"
 	"github.com/tcolgate/hugot/message"
 )
 
 func init() {
-	handler.MustRegister(New())
+	handler.Add([]string{"ping"}, New())
+}
+
+type ping struct {
 }
 
 func New() handler.Handler {
-	h, _ := handler.New(
-		handler.Description("all being well, says PONG"),
-		handler.Handle(Handle),
-	)
-	return h
+	return &ping{}
 }
 
-func Handle(reply chan *message.Message, m *message.Message) error {
-	reply <- m.Reply("PONG!")
-
-	return nil
+func (*ping) Handle(ctx context.Context, s message.Sender, m *message.Message) {
+	glog.Info("Got ping ", *m)
+	s.Send(ctx, m.Reply("PONG!"))
 }

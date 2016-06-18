@@ -20,118 +20,16 @@ package handler
 import (
 	"runtime"
 	"strings"
-
-	"github.com/tcolgate/hugot/message"
 )
 
 type base struct {
 	names       []string
 	description string
 	help        string
-	hears       HearMap
 
 	setup  SetupFunc
 	start  StartFunc
 	handle HandleFunc
-}
-
-type option func(*base) error
-
-func New(opts ...option) (Handler, error) {
-	var err error
-	b := &base{names: []string{defaultName()}}
-	for _, opt := range opts {
-		if err = opt(b); err != nil {
-			return nil, err
-		}
-	}
-
-	return b, nil
-}
-
-func Name(s string) option {
-	return func(p *base) error {
-		p.names = append(p.names, s)
-		return nil
-	}
-}
-
-func (b *base) Names() []string {
-	return b.names
-}
-
-func Description(s string) option {
-	return func(p *base) error {
-		p.description = s
-		return nil
-	}
-}
-
-func (b *base) Describe() string {
-	return b.description
-}
-
-func Help(s string) option {
-	return func(p *base) error {
-		p.help = s
-		return nil
-	}
-}
-
-func (b *base) Help() string {
-	return b.help
-}
-
-func Hears(hm HearMap) option {
-	return func(p *base) error {
-		p.hears = hm
-		return nil
-	}
-}
-
-func (b *base) Hears() HearMap {
-	return b.hears
-}
-
-func Setup(f SetupFunc) option {
-	return func(p *base) error {
-		p.setup = f
-		return nil
-	}
-}
-
-func (h *base) Setup() error {
-	if h.setup != nil {
-		return h.setup()
-	}
-	return nil
-}
-
-func Start(f StartFunc) option {
-	return func(p *base) error {
-		p.start = f
-		return nil
-	}
-}
-
-func (h *base) Start(send chan *message.Message) {
-	if h.start != nil {
-		h.start(send)
-	}
-}
-
-func Handle(f HandleFunc) option {
-	return func(p *base) error {
-		p.handle = f
-		return nil
-	}
-}
-
-func (h *base) Handle(send chan *message.Message, m *message.Message) error {
-	if h.handle != nil {
-		return h.handle(send, m)
-	}
-	return nil
 }
 
 func defaultName() string {

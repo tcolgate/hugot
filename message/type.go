@@ -18,6 +18,7 @@
 package message
 
 import (
+	"context"
 	"errors"
 	"flag"
 	"fmt"
@@ -26,14 +27,15 @@ import (
 	"github.com/nlopes/slack"
 )
 
+type Attachment slack.Attachment
+
 type Message struct {
-	Event     *slack.MessageEvent
-	From      *slack.User
-	ChannelID string
-	Channel   *slack.Channel
+	Event   *slack.MessageEvent
+	From    string
+	Channel string
 
 	Text        string
-	Attachments []slack.Attachment
+	Attachments []Attachment
 
 	Private bool
 	ToBot   bool
@@ -43,16 +45,20 @@ type Message struct {
 
 var ErrBadCLI = errors.New("coul not process as command line")
 
+type Sender interface {
+	Send(ctx context.Context, m *Message)
+}
+
 func (m *Message) Reply(txt string) *Message {
 	out := *m
 	out.Text = txt
 
 	if !m.Private && m.ToBot {
-		out.Text = fmt.Sprintf("@%s: %s", m.From.Name, txt)
+		out.Text = fmt.Sprintf("@%s: %s", m.From, txt)
 	}
 
 	out.Event = nil
-	out.From = nil
+	out.From = ""
 
 	return &out
 }

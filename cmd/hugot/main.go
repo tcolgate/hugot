@@ -18,33 +18,31 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"os"
 
 	"github.com/golang/glog"
 	bot "github.com/tcolgate/hugot"
-	_ "github.com/tcolgate/hugot/handler/help"
+	"github.com/tcolgate/hugot/adapter/slack"
+
 	_ "github.com/tcolgate/hugot/handler/ping"
-	_ "github.com/tcolgate/hugot/handler/tableflip"
-	_ "github.com/tcolgate/hugot/handler/testcli"
+	//	_ "github.com/tcolgate/hugot/handler/help"
+	//	_ "github.com/tcolgate/hugot/handler/tableflip"
+	//	_ "github.com/tcolgate/hugot/handler/testcli"
 )
 
 var slackToken = flag.String("token", os.Getenv("SLACK_TOKEN"), "Slack API Token")
-var nick = flag.String("nick", "hugot", "Bot nick")
+var nick = flag.String("nick", "minion", "Bot nick")
 
 func main() {
 	flag.Parse()
 
-	bot, err := bot.New(
-		bot.Token(*slackToken),
-		bot.Nick(*nick),
-	)
+	ctx := context.Background()
+	a, err := slack.New(*slackToken, *nick)
 	if err != nil {
-		glog.Fatal(err.Error())
+		glog.Fatal(err)
 	}
 
-	bot.Start()
-	if err != nil {
-		glog.Fatal(err.Error())
-	}
+	bot.ListenAndServe(ctx, a, nil)
 }

@@ -18,9 +18,8 @@
 package handler
 
 import (
+	"context"
 	"errors"
-	"flag"
-	"regexp"
 
 	"github.com/tcolgate/hugot/message"
 )
@@ -32,25 +31,21 @@ var (
 	ErrNeedsPrivacy = errors.New("potentially dangerous must ask nicely")
 )
 
-type HearHandlerFunc func(send chan *message.Message, msg *message.Message)
-type HearMap map[*regexp.Regexp]HearHandlerFunc
-
-type Handler interface {
-	Setup() error
-	Names() []string  // A list of names/aliases for this command
-	Describe() string // A list of names/aliases for this command
-	Help() string     // A list of names/aliases for this command
-
-	Start(send chan *message.Message) // Triggered when the bot is ready
-	Handle(send chan *message.Message, m *message.Message) error
-	Hears() HearMap
-}
-
 type SetupFunc func() error
 type StartFunc func(chan *message.Message) error
-type HandleFunc func(chan *message.Message, *message.Message) error
+type HandleFunc func(ctx context.Context, s message.Sender, m *message.Message)
 
-type CLIHandler interface {
-	Handler
-	SetupFlags(*flag.FlagSet)
+type Handler interface {
+	Handle(ctx context.Context, s message.Sender, m *message.Message)
 }
+
+type BackgroundHandler interface {
+	BackgroundHandle(ctx context.Context, s message.Sender)
+}
+
+//type HearHandlerFunc func(send chan *message.Message, msg *message.Message)
+//type HearMap map[*regexp.Regexp]HearHandlerFunc
+//	Setup() error
+//	Describe() string // A list of names/aliases for this command
+//	Names() []string  // A list of names/aliases for this command
+//	Help() string     // A list of names/aliases for this command

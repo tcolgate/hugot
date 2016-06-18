@@ -1,31 +1,31 @@
-package slackcache
+package slack
 
 import (
 	"sync"
 
-	"github.com/nlopes/slack"
+	client "github.com/nlopes/slack"
 )
 
-type Cache struct {
-	api *slack.Client
+type cache struct {
+	api *client.Client
 
 	cacheLock sync.Mutex
-	userCache map[string]*slack.User
-	chanCache map[string]*slack.Channel
+	userCache map[string]*client.User
+	chanCache map[string]*client.Channel
 }
 
-func New(api *slack.Client) *Cache {
-	return &Cache{
+func newCache(api *client.Client) *cache {
+	return &cache{
 		api: api,
 	}
 }
 
-func (c *Cache) GetUser(id string) (*slack.User, error) {
+func (c *cache) GetUser(id string) (*client.User, error) {
 	c.cacheLock.Lock()
 	defer c.cacheLock.Unlock()
 
 	if c.userCache == nil {
-		c.userCache = make(map[string]*slack.User)
+		c.userCache = make(map[string]*client.User)
 	}
 
 	if u, ok := c.userCache[id]; ok {
@@ -41,12 +41,12 @@ func (c *Cache) GetUser(id string) (*slack.User, error) {
 	return u, nil
 }
 
-func (c *Cache) GetChannel(id string) (*slack.Channel, error) {
+func (c *cache) GetChannel(id string) (*client.Channel, error) {
 	c.cacheLock.Lock()
 	defer c.cacheLock.Unlock()
 
 	if c.chanCache == nil {
-		c.chanCache = make(map[string]*slack.Channel)
+		c.chanCache = make(map[string]*client.Channel)
 	}
 
 	if sc, ok := c.chanCache[id]; ok {
