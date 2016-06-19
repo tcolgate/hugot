@@ -32,30 +32,40 @@ var (
 	ErrNeedsPrivacy = errors.New("potentially dangerous, ask me in private")
 )
 
+// Describer can return a name and description.
 type Describer interface {
 	Describe() (string, string)
 }
 
+// Handler is a handler with no actual functionality
 type Handler interface {
 	Describer
 }
 
+// RawHandler will recieve every message  sent to the handler, without
+// any filtering.
 type RawHandler interface {
 	Handler
 	Handle(ctx context.Context, s Sender, m *Message) error
 }
 
+// BackgroundHandler gets run when the bot starts listening. They are
+// intended for publishing messages that are not in response to any
+// specific incoming message.
 type BackgroundHandler interface {
 	Handler
 	BackgroundHandle(ctx context.Context, s Sender)
 }
 
+// HearsHandler is a handler which responds to messages matching a specific
+// pattern.
 type HearsHandler interface {
 	Handler
-	Hears() *regexp.Regexp
-	Heard(ctx context.Context, s Sender, m *Message, submatches [][]string)
+	Hears() *regexp.Regexp                                                  // Returns the regexp we want to hear
+	Heard(ctx context.Context, s Sender, m *Message, submatches [][]string) // Called once a message matches, and is passed any submatches from the regexp capture groups
 }
 
+// HearsHandler handlers are used to implement CLI style commands
 type CommandHandler interface {
 	Handler
 	Command(ctx context.Context, s Sender, m *Message) error
@@ -69,7 +79,7 @@ func glogPanic() {
 	}
 }
 
-func runHandlers(ctx context.Context, a Adapter, h Handler) {
+func runHandlers(ctx context.Context, a SenderReceiver, h Handler) {
 	if bh, ok := h.(BackgroundHandler); ok {
 		runBGHandler(ctx, a, bh)
 	}
@@ -78,7 +88,7 @@ func runHandlers(ctx context.Context, a Adapter, h Handler) {
 		select {
 		case m := <-a.Receive():
 			glog.Infoln(m)
-			m.Adapter = a
+			m.SenderReceiver = a
 
 			if rh, ok := h.(RawHandler); ok {
 				go runRawHandler(ctx, rh, m)
@@ -118,14 +128,14 @@ func runBGHandler(ctx context.Context, s Sender, h BackgroundHandler) {
 func runRawHandler(ctx context.Context, h RawHandler, m *Message) {
 	defer glogPanic()
 
-	h.Handle(ctx, m.Adapter, m)
+	h.Handle(ctx, m.SenderReceiver, m)
 }
 
 func runHearsHandler(ctx context.Context, h HearsHandler, m *Message) bool {
 	defer glogPanic()
 
 	if mtchs := h.Hears().FindAllStringSubmatch(m.Text, -1); mtchs != nil {
-		h.Heard(ctx, m.Adapter, m, mtchs)
+		h.Heard(ctx, m.SenderReceiver, m, mtchs)
 		return true
 	}
 	return false
@@ -133,5 +143,4 @@ func runHearsHandler(ctx context.Context, h HearsHandler, m *Message) bool {
 
 func runCommandHandler(ctx context.Context, h CommandHandler, m *Message) {
 	defer glogPanic()
-
 }

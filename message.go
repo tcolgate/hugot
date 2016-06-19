@@ -29,7 +29,7 @@ import (
 type Attachment slack.Attachment
 
 type Message struct {
-	Adapter Adapter // The to use for sending
+	SenderReceiver SenderReceiver // The to use for sending
 
 	Event   *slack.MessageEvent
 	From    string
