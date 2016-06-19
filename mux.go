@@ -124,10 +124,13 @@ func (mx *Mux) SelectHandlers(m *Message) []Handler {
 	var cmd CommandHandler
 	cmdStr := ""
 
-	if m.ToBot {
-		tokens := strings.Fields(m.Text)
+	if tks := strings.Fields(m.Text); m.ToBot && len(tks) > 0 {
 		// We should add the help handler here
-		cmdStr = tokens[0]
+		cmdStr = tks[0]
+		if _, ok := mx.cmds[cmdStr]; ok {
+			cmd = mx.cmds[cmdStr]
+			hs = append(hs, Handler(cmd))
+		}
 	}
 
 	// if this isn't a help request, we'll apply

@@ -143,4 +143,6 @@ func runHearsHandler(ctx context.Context, h HearsHandler, m *Message) bool {
 
 func runCommandHandler(ctx context.Context, h CommandHandler, m *Message) {
 	defer glogPanic()
+
+	h.Command(ctx, m.SenderReceiver, m)
 }
