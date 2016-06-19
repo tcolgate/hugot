@@ -68,6 +68,7 @@ type HearsHandler interface {
 // HearsHandler handlers are used to implement CLI style commands
 type CommandHandler interface {
 	Handler
+	CommandName() string
 	Command(ctx context.Context, s Sender, m *Message) error
 }
 
@@ -144,5 +145,17 @@ func runHearsHandler(ctx context.Context, h HearsHandler, m *Message) bool {
 func runCommandHandler(ctx context.Context, h CommandHandler, m *Message) {
 	defer glogPanic()
 
-	h.Command(ctx, m.SenderReceiver, m)
+	err := h.Command(ctx, m.SenderReceiver, m)
+
+	switch err {
+	case nil:
+	case ErrAskNicely:
+		m.SenderReceiver.Send(ctx, m.Reply("You should ask Nicely"))
+	case ErrUnAuthorized:
+		m.SenderReceiver.Send(ctx, m.Reply("You are not authorized to do that"))
+	case ErrNeedsPrivacy:
+		m.SenderReceiver.Send(ctx, m.Reply("You should ask that in private"))
+	default:
+		m.SenderReceiver.Send(ctx, m.Replyf("error, %v", err.Error()))
+	}
 }

@@ -23,10 +23,12 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+
+	"github.com/golang/glog"
 )
 
 func init() {
-	DefaultMux = NewMux("", "")
+	DefaultMux = NewMux("defaultMux", "")
 }
 
 type Mux struct {
@@ -82,31 +84,37 @@ func Add(h Handler) error {
 func (mx *Mux) Add(h Handler) error {
 	mx.Lock()
 	defer mx.Unlock()
+	name, _ := h.Describe()
 
 	var used bool
 	if h, ok := h.(RawHandler); ok {
+		glog.Errorf("Registered raw handler %v", name)
 		mx.rhndlrs = append(mx.rhndlrs, h)
 		used = true
 	}
 
 	if h, ok := h.(BackgroundHandler); ok {
+		glog.Errorf("Registered baclground handler %v", name)
 		mx.bghndlrs = append(mx.bghndlrs, h)
 		used = true
 	}
 
 	if h, ok := h.(CommandHandler); ok {
-		n, _ := h.Describe()
+		glog.Errorf("Registered command handler %v", name)
+		n := h.CommandName()
 		mx.cmds[n] = h
 		used = true
 	}
 
 	if h, ok := h.(HearsHandler); ok {
+		glog.Errorf("Registered hears handler %v", name)
 		r := h.Hears()
 		mx.hears[r] = append(mx.hears[r], h)
 		used = true
 	}
 
 	if !used {
+		glog.Errorf("failed to register %v, not a recognised handler type", name)
 		return fmt.Errorf("Don't know how to use %T as a handler", h)
 	}
 
@@ -159,62 +167,13 @@ func (mx *Mux) SelectHandlers(m *Message) []Handler {
 
 /*
 func doCmd(h handler.Handler, msg *Message) {
-	var err error
-	defer func() {
-		if r := recover(); r != nil {
-			b.Send(m.Replyf("Handler paniced, %v", r))
-			return
-		}
-
-		switch err {
-		case nil, handler.ErrIgnore:
-		case ErrAskNicely:
-			b.Send(m.Reply("You should ask Nicely"))
-		case ErrUnAuthorized:
-			b.Send(m.Reply("You are not authorized to do that"))
-		case ErrNeedsPrivacy:
-			b.Send(m.Reply("You should ask that in private"))
-		default:
-			b.Send(m.Replyf("error, %v", err.Error()))
-		}
-	}()
-
-	err = h.Handle(b.Sender, &m)
-
-	return
 }
 */
 
-/*
-func (mx *Mux) runHandlers(m *Message) {
-	if m.Private {
-		glog.Infof("Handling private from %v: %v", m.From, m.Text)
-	} else {
-		glog.Infof("Handling in %v from %v: %v", m.Channel, m.From, m.Text)
-	}
-
-
-			names := h.Names()
-			cmds = append(cmds, names[0])
-			for _, n := range names {
-				if n == cmd {
-					run = true
-					break
-				}
-			}
-		}
-
-		// If this is not a call for help we'll check all the Hear patterns
-		// We have to ignore any not directly send to us on private channels.
-		// All  sent via the API (not the websocket API), will show us as
-		// being from the user we are chatting with EVEN IF WE SENT THEM.
-		if hrs := h.Hears(); cmd != "help" && hrs != nil {
-		}
-	}
-
-	if m.ToBot && !run {
-		cmdList := strings.Join(cmds, ",")
-		b.Send(m.Replyf("Unknown command '%s', known commands are: %s", cmd, cmdList))
-	}
+func (mx *Mux) CommandName() string {
+	return "help"
 }
-*/
+
+func (mx *Mux) Command(ctx context.Context, w Sender, m *Message) error {
+	return nil
+}

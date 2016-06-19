@@ -39,6 +39,10 @@ func (*ping) Describe() (string, string) {
 	return "ping", "replies Pong to any ping"
 }
 
+func (*ping) CommandName() string {
+	return "ping"
+}
+
 func (*ping) Command(ctx context.Context, s hugot.Sender, m *hugot.Message) error {
 	glog.Info("Got ping ", *m)
 	s.Send(ctx, m.Reply("PONG!"))
