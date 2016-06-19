@@ -15,15 +15,12 @@
 // You should have received a copy of the GNU General Public License
 // along with hugot.  If not, see <http://www.gnu.org/licenses/>.
 
-package handler
+package hugot
 
 import (
 	"context"
 	"regexp"
 	"sync"
-
-	"github.com/tcolgate/hugot/adapter"
-	"github.com/tcolgate/hugot/message"
 )
 
 func init() {
@@ -44,7 +41,7 @@ type Mux struct {
 	handlers map[string]Handler
 }
 
-func (mx *Mux) BackgroundHandler(ctx context.Context, w adapter.Sender) {
+func (mx *Mux) BackgroundHandler(ctx context.Context, w Sender) {
 	mx.RLock()
 	defer mx.RUnlock()
 
@@ -55,7 +52,7 @@ func (mx *Mux) BackgroundHandler(ctx context.Context, w adapter.Sender) {
 	}
 }
 
-func (mx *Mux) Handle(ctx context.Context, w adapter.Sender, m *message.Message) {
+func (mx *Mux) Handle(ctx context.Context, w Sender, m *Message) error {
 	mx.RLock()
 	defer mx.RUnlock()
 
@@ -63,6 +60,7 @@ func (mx *Mux) Handle(ctx context.Context, w adapter.Sender, m *message.Message)
 	for _, h := range hs {
 		go h.Handle(ctx, w, m)
 	}
+	return nil
 }
 
 func (mx *Mux) Hears() []*regexp.Regexp {
@@ -78,7 +76,7 @@ func (mx *Mux) Hears() []*regexp.Regexp {
 	return hrs
 }
 
-func (mx *Mux) Handlers(m *message.Message) ([]Handler, []string) {
+func (mx *Mux) Handlers(m *Message) ([]Handler, []string) {
 	mx.RLock()
 	defer mx.RUnlock()
 
@@ -106,9 +104,9 @@ func (mx *Mux) Add(s []string, h Handler) error {
 
 /*
 	if m.Private {
-		b.Debugf("Handling private message from %v: %v", m.From.Name, m.Text)
+		b.Debugf("Handling private from %v: %v", m.From.Name, m.Text)
 	} else {
-		b.Debugf("Handling message in %v from %v: %v", m.Channel.Name, m.From.Name, m.Text)
+		b.Debugf("Handling in %v from %v: %v", m.Channel.Name, m.From.Name, m.Text)
 	}
 
 	run := false
@@ -125,7 +123,7 @@ func (mx *Mux) Add(s []string, h Handler) error {
 			cmds = append(cmds, names[0])
 			for _, n := range names {
 				if n == cmd {
-					go func(h handler.Handler, msg *message.Message) {
+					go func(h handler.Handler, msg *Message) {
 						var err error
 						defer func() {
 							if r := recover(); r != nil {
@@ -157,11 +155,11 @@ func (mx *Mux) Add(s []string, h Handler) error {
 		}
 
 		// If this is not a call for help we'll check all the Hear patterns
-		// We have to ignore any message not directly send to us on private channels.
-		// All messages sent via the API (not the websocket API), will show us as
+		// We have to ignore any not directly send to us on private channels.
+		// All  sent via the API (not the websocket API), will show us as
 		// being from the user we are chatting with EVEN IF WE SENT THEM.
 		if hrs := h.Hears(); cmd != "help" && hrs != nil {
-			go func(h handler.Handler, hrs handler.HearMap, msg *message.Message) {
+			go func(h handler.Handler, hrs handler.HearMap, msg *Message) {
 				for hr, f := range hrs {
 					glog.Infof("%#v", (m))
 					if hr.MatchString(m.Text) {

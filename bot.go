@@ -22,19 +22,16 @@ import (
 	"runtime/debug"
 
 	"github.com/golang/glog"
-	"github.com/tcolgate/hugot/adapter"
-	"github.com/tcolgate/hugot/handler"
-	"github.com/tcolgate/hugot/message"
 )
 
-func ListenAndServe(ctx context.Context, a adapter.Adapter, h handler.Handler) {
+func ListenAndServe(ctx context.Context, a Adapter, h Handler) {
 	if h == nil {
-		h = handler.DefaultMux
+		h = DefaultMux
 	}
 
-	if bh, ok := h.(handler.BackgroundHandler); ok {
-		glog.Infof("Starting background handler %v\n", bh)
-		go func(ctx context.Context, bh handler.BackgroundHandler) {
+	if bh, ok := h.(BackgroundHandler); ok {
+		glog.Infof("Starting background %v\n", bh)
+		go func(ctx context.Context, bh BackgroundHandler) {
 			defer func() {
 				err := recover()
 				if err != nil {
@@ -50,7 +47,8 @@ func ListenAndServe(ctx context.Context, a adapter.Adapter, h handler.Handler) {
 		select {
 		case m := <-a.Receive():
 			glog.Infoln(m)
-			go func(ctx context.Context, h handler.Handler, a adapter.Adapter, m *message.Message) {
+			m.Adapter = a
+			go func(ctx context.Context, h Handler, a Adapter, m *Message) {
 				defer func() {
 					err := recover()
 					if err != nil {
@@ -67,7 +65,7 @@ func ListenAndServe(ctx context.Context, a adapter.Adapter, h handler.Handler) {
 	}
 }
 
-func processMessage(ctx context.Context, h handler.Handler, a adapter.Adapter, m *message.Message) {
-	glog.Infof("Passing message %v to %v\n", m, h)
+func processMessage(ctx context.Context, h Handler, a Adapter, m *Message) {
+	glog.Infof("Passing %v to %v\n", m, h)
 	h.Handle(ctx, a, m)
 }

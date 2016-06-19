@@ -25,8 +25,7 @@ import (
 	"strings"
 
 	"github.com/golang/glog"
-	"github.com/tcolgate/hugot/adapter"
-	"github.com/tcolgate/hugot/message"
+	"github.com/tcolgate/hugot"
 
 	client "github.com/nlopes/slack"
 )
@@ -43,11 +42,11 @@ type slack struct {
 	info   client.Info
 	*cache
 
-	sender   chan *message.Message
+	sender   chan *hugot.Message
 	receiver chan client.RTMEvent
 }
 
-func New(token, nick string) (adapter.Adapter, error) {
+func New(token, nick string) (hugot.Adapter, error) {
 	s := slack{nick: nick}
 	if token == "" {
 		return nil, errors.New("Slack Token must be set")
@@ -84,14 +83,14 @@ func New(token, nick string) (adapter.Adapter, error) {
 	// RTM does not support formatted message parsing
 	wsAPI := s.api.NewRTM()
 	s.receiver = wsAPI.IncomingEvents
-	s.sender = make(chan *message.Message)
+	s.sender = make(chan *hugot.Message)
 
 	go wsAPI.ManageConnection()
 
 	return &s, nil
 }
 
-func (b *slack) Send(ctx context.Context, m *message.Message) {
+func (b *slack) Send(ctx context.Context, m *hugot.Message) {
 	if (m.Text != "" || len(m.Attachments) > 0) && m.Channel != "" {
 		glog.Infof("sending, %#v", *m)
 		var err error
@@ -109,8 +108,8 @@ func (b *slack) Send(ctx context.Context, m *message.Message) {
 	}
 }
 
-func (s *slack) Receive() <-chan *message.Message {
-	out := make(chan *message.Message, 1)
+func (s *slack) Receive() <-chan *hugot.Message {
+	out := make(chan *hugot.Message, 1)
 	for {
 		select {
 		case m := <-s.receiver:
@@ -139,7 +138,7 @@ func (s *slack) Receive() <-chan *message.Message {
 	}
 }
 
-func (s *slack) slackMsgToHugot(me *client.MessageEvent) *message.Message {
+func (s *slack) slackMsgToHugot(me *client.MessageEvent) *hugot.Message {
 	var private, tobot bool
 	glog.Infof("%#v\n", *me)
 
@@ -199,7 +198,7 @@ func (s *slack) slackMsgToHugot(me *client.MessageEvent) *message.Message {
 		txt = strings.Trim(dirMatch[3], " ")
 	}
 
-	m := message.Message{
+	m := hugot.Message{
 		Event:   me,
 		Channel: cname,
 		From:    uname,

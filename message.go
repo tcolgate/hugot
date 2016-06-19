@@ -15,7 +15,7 @@
 // You should have received a copy of the GNU General Public License
 // along with hugot.  If not, see <http://www.gnu.org/licenses/>.
 
-package message
+package hugot
 
 import (
 	"errors"
@@ -29,6 +29,8 @@ import (
 type Attachment slack.Attachment
 
 type Message struct {
+	Adapter Adapter // The to use for sending
+
 	Event   *slack.MessageEvent
 	From    string
 	Channel string

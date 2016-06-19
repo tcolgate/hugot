@@ -15,15 +15,12 @@
 // You should have received a copy of the GNU General Public License
 // along with hugot.  If not, see <http://www.gnu.org/licenses/>.
 
-package handler
+package hugot
 
 import (
 	"context"
 	"errors"
 	"regexp"
-
-	"github.com/tcolgate/hugot/adapter"
-	"github.com/tcolgate/hugot/message"
 )
 
 var (
@@ -34,15 +31,15 @@ var (
 )
 
 type SetupFunc func() error
-type StartFunc func(chan *message.Message) error
-type HandleFunc func(ctx context.Context, s adapter.Sender, m *message.Message)
+type StartFunc func(chan *Message) error
+type HandleFunc func(ctx context.Context, s Sender, m *Message)
 
 type Handler interface {
-	Handle(ctx context.Context, s adapter.Sender, m *message.Message)
+	Handle(ctx context.Context, s Sender, m *Message) error
 }
 
 type BackgroundHandler interface {
-	BackgroundHandle(ctx context.Context, s adapter.Sender)
+	BackgroundHandle(ctx context.Context, s Sender)
 }
 
 type HearsHandler interface {
@@ -52,7 +49,7 @@ type HearsHandler interface {
 type CommandHandler interface {
 }
 
-//type HearHandlerFunc func(send chan *message.Message, msg *message.Message)
+//type HearHandlerFunc func(send chan *Message, msg *Message)
 //type HearMap map[*regexp.Regexp]HearHandlerFunc
 //	Setup() error
 //	Describe() string // A list of names/aliases for this command

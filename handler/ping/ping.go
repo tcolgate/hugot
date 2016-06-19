@@ -21,23 +21,22 @@ import (
 	"context"
 
 	"github.com/golang/glog"
-	"github.com/tcolgate/hugot/adapter"
-	"github.com/tcolgate/hugot/handler"
-	"github.com/tcolgate/hugot/message"
+	"github.com/tcolgate/hugot"
 )
 
 func init() {
-	handler.Add([]string{"ping"}, New())
+	hugot.Add([]string{"ping"}, New())
 }
 
 type ping struct {
 }
 
-func New() handler.Handler {
+func New() hugot.Handler {
 	return &ping{}
 }
 
-func (*ping) Handle(ctx context.Context, s adapter.Sender, m *message.Message) {
+func (*ping) Handle(ctx context.Context, s hugot.Sender, m *hugot.Message) error {
 	glog.Info("Got ping ", *m)
 	s.Send(ctx, m.Reply("PONG!"))
+	return nil
 }
