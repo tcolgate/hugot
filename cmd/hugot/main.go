@@ -24,11 +24,10 @@ import (
 
 	"github.com/golang/glog"
 	bot "github.com/tcolgate/hugot"
-	"github.com/tcolgate/hugot/adapter/slack"
+	"github.com/tcolgate/hugot/adapters/slack"
 
-	_ "github.com/tcolgate/hugot/handler/ping"
-	_ "github.com/tcolgate/hugot/handler/tableflip"
-	//	_ "github.com/tcolgate/hugot/handler/help"
+	_ "github.com/tcolgate/hugot/handlers/ping"
+	_ "github.com/tcolgate/hugot/handlers/tableflip"
 	//	_ "github.com/tcolgate/hugot/handler/testcli"
 )
 
