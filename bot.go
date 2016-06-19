@@ -67,5 +67,5 @@ func ListenAndServe(ctx context.Context, a Adapter, h Handler) {
 
 func processMessage(ctx context.Context, h Handler, a Adapter, m *Message) {
 	glog.Infof("Passing %v to %v\n", m, h)
-	h.Handle(ctx, a, m)
+	h.Handle(ctx, m.Adapter, m)
 }
