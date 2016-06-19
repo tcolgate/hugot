@@ -21,37 +21,117 @@ import (
 	"context"
 	"errors"
 	"regexp"
+	"runtime/debug"
+
+	"github.com/golang/glog"
 )
 
 var (
-	ErrIgnore       = errors.New("ignored message")
-	ErrAskNicely    = errors.New("potentially dangerous must ask nicely")
-	ErrUnAuthorized = errors.New("you are not orthorized to perform this action")
-	ErrNeedsPrivacy = errors.New("potentially dangerous must ask nicely")
+	ErrAskNicely    = errors.New("potentially dangerous, ask nicely")
+	ErrUnAuthorized = errors.New("you are not authorized to perform this action")
+	ErrNeedsPrivacy = errors.New("potentially dangerous, ask me in private")
 )
 
-type SetupFunc func() error
-type StartFunc func(chan *Message) error
-type HandleFunc func(ctx context.Context, s Sender, m *Message)
+type Describer interface {
+	Describe() (string, string)
+}
 
 type Handler interface {
+	Describer
+}
+
+type RawHandler interface {
+	Handler
 	Handle(ctx context.Context, s Sender, m *Message) error
 }
 
 type BackgroundHandler interface {
+	Handler
 	BackgroundHandle(ctx context.Context, s Sender)
 }
 
 type HearsHandler interface {
-	Hears() []*regexp.Regexp
+	Handler
+	Hears() *regexp.Regexp
+	Heard(ctx context.Context, s Sender, m *Message, submatches [][]string)
 }
 
 type CommandHandler interface {
+	Handler
+	Command(ctx context.Context, s Sender, m *Message) error
 }
 
-//type HearHandlerFunc func(send chan *Message, msg *Message)
-//type HearMap map[*regexp.Regexp]HearHandlerFunc
-//	Setup() error
-//	Describe() string // A list of names/aliases for this command
-//	Names() []string  // A list of names/aliases for this command
-//	Help() string     // A list of names/aliases for this command
+func glogPanic() {
+	err := recover()
+	if err != nil {
+		glog.Error(err)
+		glog.Error(string(debug.Stack()))
+	}
+}
+
+func runHandlers(ctx context.Context, a Adapter, h Handler) {
+	if bh, ok := h.(BackgroundHandler); ok {
+		runBGHandler(ctx, a, bh)
+	}
+
+	for {
+		select {
+		case m := <-a.Receive():
+			glog.Infoln(m)
+			m.Adapter = a
+
+			if rh, ok := h.(RawHandler); ok {
+				go runRawHandler(ctx, rh, m)
+			}
+
+			if hh, ok := h.(HearsHandler); ok {
+				go runHearsHandler(ctx, hh, m)
+			}
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
+func runOneHandler(ctx context.Context, h Handler, m *Message) {
+	if rh, ok := h.(RawHandler); ok {
+		go runRawHandler(ctx, rh, m)
+	}
+
+	if hh, ok := h.(HearsHandler); ok {
+		go runHearsHandler(ctx, hh, m)
+	}
+
+	if hh, ok := h.(CommandHandler); ok {
+		go runCommandHandler(ctx, hh, m)
+	}
+}
+
+func runBGHandler(ctx context.Context, s Sender, h BackgroundHandler) {
+	glog.Infof("Starting background %v\n", h)
+	go func(ctx context.Context, bh BackgroundHandler) {
+		defer glogPanic()
+		h.BackgroundHandle(ctx, s)
+	}(ctx, h)
+}
+
+func runRawHandler(ctx context.Context, h RawHandler, m *Message) {
+	defer glogPanic()
+
+	h.Handle(ctx, m.Adapter, m)
+}
+
+func runHearsHandler(ctx context.Context, h HearsHandler, m *Message) bool {
+	defer glogPanic()
+
+	if mtchs := h.Hears().FindAllStringSubmatch(m.Text, -1); mtchs != nil {
+		h.Heard(ctx, m.Adapter, m, mtchs)
+		return true
+	}
+	return false
+}
+
+func runCommandHandler(ctx context.Context, h CommandHandler, m *Message) {
+	defer glogPanic()
+
+}

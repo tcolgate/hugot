@@ -27,8 +27,8 @@ import (
 	"github.com/tcolgate/hugot/adapter/slack"
 
 	_ "github.com/tcolgate/hugot/handler/ping"
+	_ "github.com/tcolgate/hugot/handler/tableflip"
 	//	_ "github.com/tcolgate/hugot/handler/help"
-	//	_ "github.com/tcolgate/hugot/handler/tableflip"
 	//	_ "github.com/tcolgate/hugot/handler/testcli"
 )
 

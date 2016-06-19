@@ -17,55 +17,12 @@
 
 package hugot
 
-import (
-	"context"
-	"runtime/debug"
-
-	"github.com/golang/glog"
-)
+import "context"
 
 func ListenAndServe(ctx context.Context, a Adapter, h Handler) {
 	if h == nil {
 		h = DefaultMux
 	}
 
-	if bh, ok := h.(BackgroundHandler); ok {
-		glog.Infof("Starting background %v\n", bh)
-		go func(ctx context.Context, bh BackgroundHandler) {
-			defer func() {
-				err := recover()
-				if err != nil {
-					glog.Error(err)
-					glog.Error(string(debug.Stack()))
-				}
-			}()
-			bh.BackgroundHandle(ctx, a)
-		}(ctx, bh)
-	}
-
-	for {
-		select {
-		case m := <-a.Receive():
-			glog.Infoln(m)
-			m.Adapter = a
-			go func(ctx context.Context, h Handler, a Adapter, m *Message) {
-				defer func() {
-					err := recover()
-					if err != nil {
-						glog.Error(err)
-						glog.Error(string(debug.Stack()))
-					}
-				}()
-
-				processMessage(ctx, h, a, m)
-			}(ctx, h, a, m)
-		case <-ctx.Done():
-			return
-		}
-	}
-}
-
-func processMessage(ctx context.Context, h Handler, a Adapter, m *Message) {
-	glog.Infof("Passing %v to %v\n", m, h)
-	h.Handle(ctx, m.Adapter, m)
+	runHandlers(ctx, a, h)
 }

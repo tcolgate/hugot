@@ -25,7 +25,7 @@ import (
 )
 
 func init() {
-	hugot.Add([]string{"ping"}, New())
+	hugot.Add(New())
 }
 
 type ping struct {
@@ -35,7 +35,11 @@ func New() hugot.Handler {
 	return &ping{}
 }
 
-func (*ping) Handle(ctx context.Context, s hugot.Sender, m *hugot.Message) error {
+func (*ping) Describe() (string, string) {
+	return "ping", "replies Pong to any ping"
+}
+
+func (*ping) Command(ctx context.Context, s hugot.Sender, m *hugot.Message) error {
 	glog.Info("Got ping ", *m)
 	s.Send(ctx, m.Reply("PONG!"))
 	return nil

@@ -18,38 +18,42 @@
 package handlers
 
 import (
+	"context"
 	"regexp"
 	"time"
 
-	"github.com/tcolgate/hugot/handler"
-	"github.com/tcolgate/hugot/message"
+	"github.com/tcolgate/hugot"
 )
 
 // y=ｰ( ﾟдﾟ)･∵.
 // From Will P
 
 func init() {
-	handler.MustRegister(New())
+	hugot.Add(New())
 }
 
-func New() handler.Handler {
-	h, _ := handler.New(
-		handler.Hears(handler.HearMap{
-			tableflipRegexp: heardFlip,
-		}),
-		handler.Description("stress reliever"),
-		handler.Help("just say the word, watch the tables go flying"),
-	)
-	return h
+type tableflip struct {
+}
+
+func New() hugot.Handler {
+	return &tableflip{}
+}
+
+func (*tableflip) Describe() (string, string) {
+	return "tableflip", "stress reliever, just say the word, watch the tables go flying"
 }
 
 var tableflipRegexp = regexp.MustCompile(`(^| *)tableflip($| *)`)
+
+func (*tableflip) Hears() *regexp.Regexp {
+	return tableflipRegexp
+}
 
 // We'll be horrid and use some globals
 var flipState bool
 var lastFlip time.Time
 
-func heardFlip(s chan *message.Message, m *message.Message) {
+func (*tableflip) Heard(ctx context.Context, s hugot.Sender, m *hugot.Message, submatches [][]string) {
 	flip := `(╯°□°）╯︵ ┻━┻`
 	unFlip := `┬━┬ ノ( ゜-゜ノ)`
 	doubleFlip := "┻━┻ ︵¯\\(ツ)/¯ ︵ ┻━┻"
@@ -64,24 +68,24 @@ func heardFlip(s chan *message.Message, m *message.Message) {
 			time.Sleep(five)
 			if flipState == true {
 				flipState = false
-				s <- m.Reply(unFlip)
+				s.Send(ctx, m.Reply(unFlip))
 			}
 		}()
 
 		switch fs := tableflipRegexp.FindAllString(m.Text, 5); len(fs) {
 		case 1:
-			s <- m.Reply(flip)
+			s.Send(ctx, m.Reply(flip))
 		case 2:
-			s <- m.Reply(doubleFlip)
+			s.Send(ctx, m.Reply(doubleFlip))
 		case 3:
-			s <- m.Reply(tripleFlip)
+			s.Send(ctx, m.Reply(tripleFlip))
 		default:
-			s <- m.Reply(flipOff)
+			s.Send(ctx, m.Reply(flipOff))
 			flipState = false
 		}
 		return
 	}
 
 	flipState = false
-	s <- m.Reply(unFlip)
+	s.Send(ctx, m.Reply(unFlip))
 }

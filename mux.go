@@ -19,36 +19,48 @@ package hugot
 
 import (
 	"context"
+	"fmt"
 	"regexp"
+	"strings"
 	"sync"
 )
 
 func init() {
-	DefaultMux = NewMux()
+	DefaultMux = NewMux("", "")
+}
+
+type Mux struct {
+	name string
+	desc string
+
+	*sync.RWMutex
+	hndlrs   []Handler                         // All the handlers
+	rhndlrs  []RawHandler                      // Raw handlers
+	bghndlrs []BackgroundHandler               // Long running background handlers
+	hears    map[*regexp.Regexp][]HearsHandler // Hearing handlers
+	cmds     map[string]CommandHandler         // Command handlers
 }
 
 var DefaultMux *Mux
 
-func NewMux() *Mux {
+func NewMux(name, desc string) *Mux {
 	return &Mux{
+		name:     name,
+		desc:     desc,
 		RWMutex:  &sync.RWMutex{},
-		handlers: make(map[string]Handler),
+		rhndlrs:  []RawHandler{},
+		bghndlrs: []BackgroundHandler{},
+		hears:    map[*regexp.Regexp][]HearsHandler{},
+		cmds:     map[string]CommandHandler{},
 	}
-}
-
-type Mux struct {
-	*sync.RWMutex
-	handlers map[string]Handler
 }
 
 func (mx *Mux) BackgroundHandler(ctx context.Context, w Sender) {
 	mx.RLock()
 	defer mx.RUnlock()
 
-	for _, h := range mx.handlers {
-		if bh, ok := h.(BackgroundHandler); ok {
-			go bh.BackgroundHandle(ctx, w)
-		}
+	for _, h := range mx.bghndlrs {
+		go runBGHandler(ctx, w, h)
 	}
 }
 
@@ -56,98 +68,133 @@ func (mx *Mux) Handle(ctx context.Context, w Sender, m *Message) error {
 	mx.RLock()
 	defer mx.RUnlock()
 
-	hs, _ := mx.Handlers(m)
-	for _, h := range hs {
-		go h.Handle(ctx, w, m)
+	for _, h := range mx.SelectHandlers(m) {
+		go runOneHandler(ctx, h, m)
 	}
+
 	return nil
 }
 
-func (mx *Mux) Hears() []*regexp.Regexp {
-	mx.RLock()
-	defer mx.RUnlock()
-
-	hrs := []*regexp.Regexp{}
-	for _, h := range mx.handlers {
-		if hh, ok := h.(HearsHandler); ok {
-			hrs = append(hrs, hh.Hears()...)
-		}
-	}
-	return hrs
+func Add(h Handler) error {
+	return DefaultMux.Add(h)
 }
 
-func (mx *Mux) Handlers(m *Message) ([]Handler, []string) {
-	mx.RLock()
-	defer mx.RUnlock()
-
-	ns := []string{}
-	hs := []Handler{}
-	for n, h := range mx.handlers {
-		ns = append(ns, n)
-		hs = append(hs, h)
-	}
-	return hs, ns
-}
-
-func Add(s []string, h Handler) error {
-	return DefaultMux.Add(s, h)
-}
-
-func (mx *Mux) Add(s []string, h Handler) error {
+func (mx *Mux) Add(h Handler) error {
 	mx.Lock()
 	defer mx.Unlock()
 
-	mx.handlers[s[0]] = h
+	var used bool
+	if h, ok := h.(RawHandler); ok {
+		mx.rhndlrs = append(mx.rhndlrs, h)
+		used = true
+	}
+
+	if h, ok := h.(BackgroundHandler); ok {
+		mx.bghndlrs = append(mx.bghndlrs, h)
+		used = true
+	}
+
+	if h, ok := h.(CommandHandler); ok {
+		n, _ := h.Describe()
+		mx.cmds[n] = h
+		used = true
+	}
+
+	if h, ok := h.(HearsHandler); ok {
+		r := h.Hears()
+		mx.hears[r] = append(mx.hears[r], h)
+		used = true
+	}
+
+	if !used {
+		return fmt.Errorf("Don't know how to use %T as a handler", h)
+	}
+
+	mx.hndlrs = append(mx.hndlrs, h)
 
 	return nil
 }
 
+func (mx *Mux) Describe() (string, string) {
+	return mx.name, mx.desc
+}
+
+func (mx *Mux) SelectHandlers(m *Message) []Handler {
+	hs := []Handler{}
+	var cmd CommandHandler
+	cmdStr := ""
+
+	if m.ToBot {
+		tokens := strings.Fields(m.Text)
+		// We should add the help handler here
+		cmdStr = tokens[0]
+	}
+
+	// if this isn't a help request, we'll apply
+	// all the hear handlers
+	if cmdStr != "help" {
+		for _, hhs := range mx.hears {
+			for _, hh := range hhs {
+				hs = append(hs, Handler(hh))
+			}
+		}
+	}
+
+	// We were sent a direct message, but we don't
+	// have a matching command
+	if m.ToBot && cmd == nil {
+		// We should add the help handler here
+	}
+
+	// We run all raw message handlers
+	for _, rh := range mx.rhndlrs {
+		hs = append(hs, Handler(rh))
+	}
+
+	return hs
+}
+
 /*
+func doCmd(h handler.Handler, msg *Message) {
+	var err error
+	defer func() {
+		if r := recover(); r != nil {
+			b.Send(m.Replyf("Handler paniced, %v", r))
+			return
+		}
+
+		switch err {
+		case nil, handler.ErrIgnore:
+		case ErrAskNicely:
+			b.Send(m.Reply("You should ask Nicely"))
+		case ErrUnAuthorized:
+			b.Send(m.Reply("You are not authorized to do that"))
+		case ErrNeedsPrivacy:
+			b.Send(m.Reply("You should ask that in private"))
+		default:
+			b.Send(m.Replyf("error, %v", err.Error()))
+		}
+	}()
+
+	err = h.Handle(b.Sender, &m)
+
+	return
+}
+*/
+
+/*
+func (mx *Mux) runHandlers(m *Message) {
 	if m.Private {
-		b.Debugf("Handling private from %v: %v", m.From.Name, m.Text)
+		glog.Infof("Handling private from %v: %v", m.From, m.Text)
 	} else {
-		b.Debugf("Handling in %v from %v: %v", m.Channel.Name, m.From.Name, m.Text)
+		glog.Infof("Handling in %v from %v: %v", m.Channel, m.From, m.Text)
 	}
 
-	run := false
-	var cmd string
-	tokens := strings.Fields(m.Text)
-	if len(tokens) > 0 {
-		cmd = tokens[0]
-	}
 
-	var cmds []string
-	for _, h := range handler.Handlers {
-		if m.ToBot {
 			names := h.Names()
 			cmds = append(cmds, names[0])
 			for _, n := range names {
 				if n == cmd {
-					go func(h handler.Handler, msg *Message) {
-						var err error
-						defer func() {
-							if r := recover(); r != nil {
-								b.Send(m.Replyf("Handler paniced, %v", r))
-								return
-							}
-
-							switch err {
-							case nil, handler.ErrIgnore:
-							case handler.ErrAskNicely:
-								b.Send(m.Reply("You should ask Nicely"))
-							case handler.ErrUnAuthorized:
-								b.Send(m.Reply("You are not authorized to do that"))
-							case handler.ErrNeedsPrivacy:
-								b.Send(m.Reply("You should ask that in private"))
-							default:
-								b.Send(m.Replyf("error, %v", err.Error()))
-							}
-						}()
-
-						err = h.Handle(b.Sender, &m)
-
-						return
-					}(h, &m)
 					run = true
 					break
 				}
@@ -159,14 +206,6 @@ func (mx *Mux) Add(s []string, h Handler) error {
 		// All  sent via the API (not the websocket API), will show us as
 		// being from the user we are chatting with EVEN IF WE SENT THEM.
 		if hrs := h.Hears(); cmd != "help" && hrs != nil {
-			go func(h handler.Handler, hrs handler.HearMap, msg *Message) {
-				for hr, f := range hrs {
-					glog.Infof("%#v", (m))
-					if hr.MatchString(m.Text) {
-						f(b.Sender, msg)
-					}
-				}
-			}(h, hrs, &m)
 		}
 	}
 
