@@ -96,7 +96,11 @@ func (b *slack) Send(ctx context.Context, m *hugot.Message) {
 		var err error
 		p := client.NewPostMessageParameters()
 		p.AsUser = false
-		//		p.Attachments = m.Attachments
+		attchs := []client.Attachment{}
+		for _, a := range m.Attachments {
+			attchs = append(attchs, client.Attachment(a))
+		}
+		p.Attachments = attchs
 		p.Username = b.nick
 		p.IconURL = b.icon // permit overriding this
 		_, _, err = b.api.PostMessage(m.Channel, m.Text, p)
