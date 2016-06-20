@@ -46,7 +46,7 @@ type Mux struct {
 var DefaultMux *Mux
 
 func NewMux(name, desc string) *Mux {
-	return &Mux{
+	mx := &Mux{
 		name:     name,
 		desc:     desc,
 		RWMutex:  &sync.RWMutex{},
@@ -55,6 +55,8 @@ func NewMux(name, desc string) *Mux {
 		hears:    map[*regexp.Regexp][]HearsHandler{},
 		cmds:     map[string]CommandHandler{},
 	}
+	mx.AddCommandHandler(&muxHelp{mx})
+	return mx
 }
 
 func (mx *Mux) BackgroundHandler(ctx context.Context, w Sender) {
@@ -81,37 +83,32 @@ func Add(h Handler) error {
 	return DefaultMux.Add(h)
 }
 
+// Add a generic handler with potentially multiple
 func (mx *Mux) Add(h Handler) error {
-	mx.Lock()
-	defer mx.Unlock()
-	name, _ := h.Describe()
-
 	var used bool
 	if h, ok := h.(RawHandler); ok {
-		glog.Errorf("Registered raw handler %v", name)
-		mx.rhndlrs = append(mx.rhndlrs, h)
+		mx.AddRawHandler(h)
 		used = true
 	}
 
 	if h, ok := h.(BackgroundHandler); ok {
-		glog.Errorf("Registered baclground handler %v", name)
-		mx.bghndlrs = append(mx.bghndlrs, h)
+		mx.AddBackgroundHandler(h)
 		used = true
 	}
 
 	if h, ok := h.(CommandHandler); ok {
-		glog.Errorf("Registered command handler %v", name)
-		n := h.CommandName()
-		mx.cmds[n] = h
+		mx.AddCommandHandler(h)
 		used = true
 	}
 
 	if h, ok := h.(HearsHandler); ok {
-		glog.Errorf("Registered hears handler %v", name)
-		r := h.Hears()
-		mx.hears[r] = append(mx.hears[r], h)
+		mx.AddHearsHandler(h)
 		used = true
 	}
+
+	mx.Lock()
+	defer mx.Unlock()
+	name, _ := h.Describe()
 
 	if !used {
 		glog.Errorf("failed to register %v, not a recognised handler type", name)
@@ -119,6 +116,70 @@ func (mx *Mux) Add(h Handler) error {
 	}
 
 	mx.hndlrs = append(mx.hndlrs, h)
+
+	return nil
+}
+
+func AddRawHandler(h RawHandler) error {
+	return DefaultMux.AddRawHandler(h)
+}
+
+func (mx *Mux) AddRawHandler(h RawHandler) error {
+	mx.Lock()
+	defer mx.Unlock()
+	name, _ := h.Describe()
+
+	if h, ok := h.(RawHandler); ok {
+		glog.Errorf("Registered raw handler %v", name)
+		mx.rhndlrs = append(mx.rhndlrs, h)
+	}
+
+	return nil
+}
+
+func AddBackgroundHandler(h BackgroundHandler) error {
+	return DefaultMux.AddBackgroundHandler(h)
+}
+
+func (mx *Mux) AddBackgroundHandler(h BackgroundHandler) error {
+	mx.Lock()
+	defer mx.Unlock()
+	name, _ := h.Describe()
+
+	glog.Errorf("Registered baclground handler %v", name)
+	mx.bghndlrs = append(mx.bghndlrs, h)
+
+	return nil
+}
+
+func AddHearsHandler(h HearsHandler) error {
+	return DefaultMux.AddHearsHandler(h)
+}
+
+func (mx *Mux) AddHearsHandler(h HearsHandler) error {
+	mx.Lock()
+	defer mx.Unlock()
+	name, _ := h.Describe()
+
+	glog.Errorf("Registered hears handler %v", name)
+	r := h.Hears()
+	mx.hears[r] = append(mx.hears[r], h)
+
+	return nil
+}
+
+func AddCommandHandler(h CommandHandler) error {
+	return DefaultMux.AddCommandHandler(h)
+}
+
+func (mx *Mux) AddCommandHandler(h CommandHandler) error {
+	mx.Lock()
+	defer mx.Unlock()
+	name, _ := h.Describe()
+
+	glog.Errorf("Registered command handler %v", name)
+	n := h.CommandName()
+	mx.cmds[n] = h
 
 	return nil
 }
@@ -165,15 +226,15 @@ func (mx *Mux) SelectHandlers(m *Message) []Handler {
 	return hs
 }
 
-/*
-func doCmd(h handler.Handler, msg *Message) {
+type muxHelp struct {
+	*Mux
 }
-*/
 
-func (mx *Mux) CommandName() string {
+func (mx *muxHelp) CommandName() string {
 	return "help"
 }
 
-func (mx *Mux) Command(ctx context.Context, w Sender, m *Message) error {
+func (mx *muxHelp) Command(ctx context.Context, w Sender, m *Message) error {
+	glog.Infof("I'm in here!!")
 	return nil
 }

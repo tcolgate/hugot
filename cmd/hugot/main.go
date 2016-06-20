@@ -28,7 +28,7 @@ import (
 
 	_ "github.com/tcolgate/hugot/handlers/ping"
 	_ "github.com/tcolgate/hugot/handlers/tableflip"
-	//	_ "github.com/tcolgate/hugot/handler/testcli"
+	_ "github.com/tcolgate/hugot/handlers/testcli"
 )
 
 var slackToken = flag.String("token", os.Getenv("SLACK_TOKEN"), "Slack API Token")
