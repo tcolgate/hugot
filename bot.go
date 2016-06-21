@@ -313,7 +313,9 @@ func (b *Bot) dispatch(ev *slack.MessageEvent) {
 		if hrs := h.Hears(); cmd != "help" && hrs != nil {
 			go func(h handler.Handler, hrs handler.HearMap, msg *message.Message) {
 				for hr, f := range hrs {
-					glog.Infof("%#v", (m))
+					if glog.V(3) {
+						glog.Infof("%#v", (m))
+					}
 					if hr.MatchString(m.Text) {
 						f(b.Sender, msg)
 					}
