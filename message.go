@@ -18,9 +18,11 @@
 package hugot
 
 import (
+	"bytes"
 	"errors"
 	"flag"
 	"fmt"
+	"log"
 
 	"github.com/mattn/go-shellwords"
 	"github.com/nlopes/slack"
@@ -42,6 +44,9 @@ type Message struct {
 	ToBot   bool
 
 	*flag.FlagSet
+
+	args    []string
+	flagOut *bytes.Buffer
 }
 
 var ErrBadCLI = errors.New("coul not process as command line")
@@ -64,11 +69,16 @@ func (m *Message) Replyf(s string, is ...interface{}) *Message {
 	return m.Reply(fmt.Sprintf(s, is...))
 }
 
+func (m *Message) NewFlagSet() error {
+	return nil
+}
+
 func (m *Message) Parse() error {
 	args, err := shellwords.Parse(m.Text)
 	if err != nil {
 		return err
 	}
+	log.Println(args)
 
 	return m.FlagSet.Parse(args[1:])
 }

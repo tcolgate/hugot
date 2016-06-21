@@ -43,10 +43,6 @@ func (*testcli) Describe() (string, string) {
 	return "testcli", "does many many interesting things"
 }
 
-func (*testcli) CommandName() string {
-	return "testcli"
-}
-
 func (*testcli) Command(ctx context.Context, s hugot.Sender, m *hugot.Message) error {
 	t := m.String("arg", "", "A string argument")
 	i := m.Int("num", 0, "An int argument")
@@ -66,10 +62,6 @@ func (*testcliHello) Describe() (string, string) {
 	return "hello", "does many many interesting things"
 }
 
-func (*testcliHello) CommandName() string {
-	return "hello"
-}
-
 func (*testcliHello) Command(ctx context.Context, s hugot.Sender, m *hugot.Message) error {
 	if err := m.Parse(); err != nil {
 		return err
@@ -84,10 +76,6 @@ type testcliWorld struct {
 
 func (*testcliWorld) Describe() (string, string) {
 	return "world", "does many many interesting things"
-}
-
-func (*testcliWorld) CommandName() string {
-	return "world"
 }
 
 func (*testcliWorld) Command(ctx context.Context, s hugot.Sender, m *hugot.Message) error {

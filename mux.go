@@ -178,7 +178,7 @@ func (mx *Mux) AddCommandHandler(h CommandHandler) error {
 	name, _ := h.Describe()
 
 	glog.Errorf("Registered command handler %v", name)
-	n := h.CommandName()
+	n := name
 	mx.cmds[n] = h
 
 	return nil
@@ -224,17 +224,4 @@ func (mx *Mux) SelectHandlers(m *Message) []Handler {
 	}
 
 	return hs
-}
-
-type muxHelp struct {
-	*Mux
-}
-
-func (mx *muxHelp) CommandName() string {
-	return "help"
-}
-
-func (mx *muxHelp) Command(ctx context.Context, w Sender, m *Message) error {
-	glog.Infof("I'm in here!!")
-	return nil
 }

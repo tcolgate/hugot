@@ -18,12 +18,15 @@
 package hugot
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"flag"
 	"regexp"
 	"runtime/debug"
 
 	"github.com/golang/glog"
+	"github.com/mattn/go-shellwords"
 )
 
 var (
@@ -68,7 +71,6 @@ type HearsHandler interface {
 // HearsHandler handlers are used to implement CLI style commands
 type CommandHandler interface {
 	Handler
-	CommandName() string
 	Command(ctx context.Context, s Sender, m *Message) error
 }
 
@@ -144,8 +146,20 @@ func runHearsHandler(ctx context.Context, h HearsHandler, m *Message) bool {
 
 func runCommandHandler(ctx context.Context, h CommandHandler, m *Message) {
 	defer glogPanic()
+	var err error
 
-	err := h.Command(ctx, m.SenderReceiver, m)
+	if m.args == nil {
+		m.args, err = shellwords.Parse(m.Text)
+		if err != nil {
+			m.SenderReceiver.Send(ctx, m.Reply("Could not parse as command line, "+err.Error()))
+		}
+	}
+
+	m.flagOut = &bytes.Buffer{}
+	m.FlagSet = flag.NewFlagSet(m.args[0], flag.ContinueOnError)
+	m.FlagSet.SetOutput(m.flagOut)
+
+	err = h.Command(ctx, m.SenderReceiver, m)
 
 	switch err {
 	case nil:
