@@ -3,6 +3,7 @@ package hugot
 import (
 	"bytes"
 	"context"
+	"flag"
 	"fmt"
 	"log"
 	"text/tabwriter"
@@ -69,6 +70,21 @@ func (mx *muxHelp) Command(ctx context.Context, s Sender, m *Message) error {
 			w.Flush()
 		}
 		s.Send(ctx, m.Reply(out.String()+"```"))
+	}
+
+	if len(m.Args()) == 1 {
+		if c, ok := mx.p.cmds[m.Args()[0]]; ok {
+			n, _ := c.Describe()
+			m.Text = n + " -h"
+			m.FlagSet = flag.NewFlagSet(n, flag.ContinueOnError)
+			m.flagOut = &bytes.Buffer{}
+			m.FlagSet.SetOutput(m.flagOut)
+			err := c.Command(ctx, s, m)
+			log.Println(err)
+			s.Send(ctx, m.Reply("```"+m.flagOut.String()+"```"))
+
+			return nil
+		}
 	}
 
 	return nil
