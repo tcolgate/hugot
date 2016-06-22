@@ -25,12 +25,34 @@ import (
 	"strings"
 
 	"github.com/golang/glog"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/tcolgate/hugot/handler"
 	"github.com/tcolgate/hugot/message"
 	"github.com/tcolgate/hugot/slackcache"
 
 	"github.com/nlopes/slack"
 )
+
+var (
+	slackLatency = prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "slack_latency_reports_millisecond",
+		Help: "Current temperature of the CPU.",
+	})
+	slackMessagesTx = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "slack_messages_sent_total",
+		Help: "Number of slack messages sent.",
+	})
+	slackMessagesRx = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "slack_messages_received_total",
+		Help: "Number of slack messages received.",
+	})
+)
+
+func init() {
+	prometheus.MustRegister(slackLatency)
+	prometheus.MustRegister(slackMessagesTx)
+	prometheus.MustRegister(slackMessagesRx)
+}
 
 type Bot struct {
 	slackToken string
@@ -147,6 +169,7 @@ func (b *Bot) run() {
 			select {
 			case msg := <-sender:
 				if (msg.Text != "" || len(msg.Attachments) > 0) && msg.ChannelID != "" {
+					slackMessagesTx.Inc()
 					params := slack.NewPostMessageParameters()
 					params.AsUser = false
 					params.Attachments = msg.Attachments
@@ -173,6 +196,7 @@ func (b *Bot) run() {
 			case *slack.PresenceChangeEvent:
 			case slack.LatencyReport:
 			case *slack.MessageEvent:
+				slackMessagesRx.Inc()
 				b.dispatch(msg.Data.(*slack.MessageEvent))
 			default:
 				glog.Infof("Unexpected: %v\n", msg.Data)
