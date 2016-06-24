@@ -19,6 +19,7 @@ package hugot
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"regexp"
 	"strings"
@@ -224,4 +225,39 @@ func (mx *Mux) SelectHandlers(m *Message) []Handler {
 	}
 
 	return hs
+}
+
+// ErrNextCommand is returned if the command wishes the message
+// to be passed to one of the SubCommands.
+var ErrNextCommand = errors.New("pass this to the next command")
+
+type CommandMux struct {
+	name string
+	desc string
+	*sync.RWMutex
+	subCmds map[string]CommandHandler // Command handlers
+}
+
+// NewCommandMux returns a CommandMux using the provided
+// CommandHandler as the base handler
+func NewCommandMux(name string, description string) *CommandMux {
+	mx := &CommandMux{
+		subCmds: map[string]CommandHandler{},
+	}
+	return mx
+}
+
+func (cx *CommandMux) AddSubCommand(c CommandHandler) {
+	cx.Lock()
+	defer cx.Unlock()
+
+	n, _ := c.Describe()
+	cx.subCmds[n] = c
+}
+
+func (*CommandMux) Command(ctx context.Context, h CommandHandler, m *Message) {
+}
+
+func (*CommandMux) SubCommands() map[string]CommandHandler {
+	return nil
 }

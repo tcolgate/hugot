@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"strings"
 	"text/tabwriter"
 )
 
@@ -15,10 +16,6 @@ type muxHelp struct {
 
 func (mx *muxHelp) Describe() (string, string) {
 	return "help", "provides help"
-}
-
-func (mx *muxHelp) CommandName() string {
-	return "help"
 }
 
 func (mx *muxHelp) Command(ctx context.Context, s Sender, m *Message) error {
@@ -72,7 +69,7 @@ func (mx *muxHelp) Command(ctx context.Context, s Sender, m *Message) error {
 		s.Send(ctx, m.Reply(out.String()+"```"))
 	}
 
-	if len(m.Args()) == 1 {
+	if len(m.Args()) >= 1 {
 		if c, ok := mx.p.cmds[m.Args()[0]]; ok {
 			n, _ := c.Describe()
 			m.Text = n + " -h"
@@ -84,6 +81,12 @@ func (mx *muxHelp) Command(ctx context.Context, s Sender, m *Message) error {
 			s.Send(ctx, m.Reply("```"+m.flagOut.String()+"```"))
 
 			return nil
+		} else {
+			argList := []string{}
+			for n := range mx.p.cmds {
+				argList = append(argList, n)
+			}
+			s.Send(ctx, m.Reply("Unkown command, available commands are: "+strings.Join(argList, ",")))
 		}
 	}
 

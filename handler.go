@@ -74,6 +74,11 @@ type CommandHandler interface {
 	Command(ctx context.Context, s Sender, m *Message) error
 }
 
+type SubCommandHandler interface {
+	CommandHandler
+	SubCommands() map[string]CommandHandler
+}
+
 func glogPanic() {
 	err := recover()
 	if err != nil {
@@ -163,6 +168,7 @@ func runCommandHandler(ctx context.Context, h CommandHandler, m *Message) {
 
 	switch err {
 	case nil:
+	case ErrNextCommand:
 	case ErrAskNicely:
 		m.SenderReceiver.Send(ctx, m.Reply("You should ask Nicely"))
 	case ErrUnAuthorized:
