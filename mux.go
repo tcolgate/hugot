@@ -20,7 +20,6 @@ package hugot
 import (
 	"context"
 	"fmt"
-	"log"
 	"regexp"
 	"sync"
 
@@ -71,22 +70,7 @@ func (mx *Mux) BackgroundHandler(ctx context.Context, w ResponseWriter) {
 func (mx *Mux) Handle(ctx context.Context, w ResponseWriter, m *Message) error {
 	mx.RLock()
 	defer mx.RUnlock()
-	err := ErrIgnored
-
-	if m.ToBot {
-		err = RunCommandHandler(ctx, mx.cmds, w, m)
-		log.Println(err)
-	}
-
-	// If it wasn't a known command, run the hear commands
-	if err != ErrSkipHears {
-		for _, hhs := range mx.hears {
-			for _, hh := range hhs {
-				mc := *m
-				go RunHearsHandler(ctx, hh, w, &mc)
-			}
-		}
-	}
+	var err Error
 
 	// We run all raw message handlers
 	for _, rh := range mx.rhndlrs {
@@ -94,7 +78,20 @@ func (mx *Mux) Handle(ctx context.Context, w ResponseWriter, m *Message) error {
 		go rh.Handle(ctx, w, &mc)
 	}
 
-	return nil
+	if m.ToBot {
+		err = RunCommandHandler(ctx, mx.cmds, w, m)
+	}
+
+	for _, hhs := range mx.hears {
+		for _, hh := range hhs {
+			mc := *m
+			if RunHearsHandler(ctx, hh, w, &mc) {
+				err = nil
+			}
+		}
+	}
+
+	return err
 }
 
 func Add(h Handler) error {
@@ -243,6 +240,7 @@ func (cx *CommandMux) Command(ctx context.Context, w ResponseWriter, m *Message)
 	}
 
 	subs := cx.subCmds
+
 	for {
 		if cmd, ok := subs[m.args[0]]; ok {
 			err = cmd.Command(ctx, w, m)
@@ -252,12 +250,11 @@ func (cx *CommandMux) Command(ctx context.Context, w ResponseWriter, m *Message)
 			var subh CommandWithSubsHandler
 			var ok bool
 			if subh, ok = cmd.(CommandWithSubsHandler); !ok {
-				glog.Infof("NOT A SUBS HANDLER")
 				return nil
 			}
 			subs = subh.SubCommands()
 		} else {
-			err = ErrUnknownCommand
+			err = ErrUnknownCommand{available: cmds}
 			break
 		}
 	}

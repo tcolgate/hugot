@@ -22,6 +22,7 @@ import (
 	"context"
 	"errors"
 	"flag"
+	"fmt"
 	"io"
 	"regexp"
 	"runtime/debug"
@@ -31,8 +32,6 @@ import (
 )
 
 var (
-	ErrUnknownCommand = errors.New("unknown command")
-
 	ErrAskNicely    = errors.New("potentially dangerous, ask nicely")
 	ErrUnAuthorized = errors.New("you are not authorized to perform this action")
 	ErrNeedsPrivacy = errors.New("potentially dangerous, ask me in private")
@@ -49,6 +48,17 @@ var (
 	// to be passed to one of the SubCommands.
 	ErrNextCommand = errors.New("pass this to the next command")
 )
+
+type ErrUnknownCommand struct {
+	Available []string
+	Wanted    string
+}
+
+func (err ErrUnknownCommand) Error() string {
+	return fmt.Sprintf("Unknown Command %s, available commands are %s",
+		err.Wanted,
+		err.Available)
+}
 
 // Describer can return a name and description.
 type Describer interface {
@@ -184,7 +194,7 @@ func RunHearsHandler(ctx context.Context, h HearsHandler, w ResponseWriter, m *M
 	defer glogPanic()
 
 	if mtchs := h.Hears().FindAllStringSubmatch(m.Text, -1); mtchs != nil {
-		h.Heard(ctx, w, m, mtchs)
+		go h.Heard(ctx, w, m, mtchs)
 		return true
 	}
 	return false
