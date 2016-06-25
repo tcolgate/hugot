@@ -90,7 +90,7 @@ func (*testcliWorld) Command(ctx context.Context, w hugot.ResponseWriter, m *hug
 	}
 
 	fmt.Fprint(w, "World!")
-	return nil
+	return hugot.ErrNextCommand
 }
 
 type testcliWorld2 struct {

@@ -236,6 +236,12 @@ func (cx *CommandMux) Command(ctx context.Context, w ResponseWriter, m *Message)
 	var err error
 	if cx.base != nil {
 		err = cx.base.Command(ctx, w, m)
+	} else {
+		err = ErrNextCommand
+	}
+
+	if err != ErrNextCommand {
+		return err
 	}
 
 	glog.Infof("IN COMMANDMUX COMMAND %v, %v, %v", err, m.args, cx.subCmds)
@@ -248,7 +254,7 @@ func (cx *CommandMux) Command(ctx context.Context, w ResponseWriter, m *Message)
 		if cmd, ok := subs[m.args[0]]; ok {
 			err = cmd.Command(ctx, w, m)
 			if err != ErrNextCommand {
-				break
+				return err
 			}
 			var subh CommandWithSubsHandler
 			var ok bool
