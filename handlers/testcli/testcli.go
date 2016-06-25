@@ -19,6 +19,7 @@ package handlers
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/tcolgate/hugot"
@@ -51,7 +52,7 @@ func (*testcli) Command(ctx context.Context, w hugot.ResponseWriter, m *hugot.Me
 		return err
 	}
 
-	w.Send(ctx, m.Replyf("testclivals: (\"%v\",%v,%v)  args: %#v", *t, *i, *d, m.Args()))
+	fmt.Fprintf(w, "testclivals: (\"%v\",%v,%v)  args: %#v", *t, *i, *d, m.Args())
 	return nil
 }
 
@@ -62,12 +63,12 @@ func (*testcliHello) Describe() (string, string) {
 	return "hello", "does many many interesting things"
 }
 
-func (*testcliHello) Command(ctx context.Context, s hugot.ResponseWriter, m *hugot.Message) error {
+func (*testcliHello) Command(ctx context.Context, w hugot.ResponseWriter, m *hugot.Message) error {
 	if err := m.Parse(); err != nil {
 		return err
 	}
 
-	s.Send(ctx, m.Replyf("Hello"))
+	fmt.Print(w, "Hello")
 	return nil
 }
 
@@ -78,11 +79,11 @@ func (*testcliWorld) Describe() (string, string) {
 	return "world", "does many many interesting things"
 }
 
-func (*testcliWorld) Command(ctx context.Context, s hugot.ResponseWriter, m *hugot.Message) error {
+func (*testcliWorld) Command(ctx context.Context, w hugot.ResponseWriter, m *hugot.Message) error {
 	if err := m.Parse(); err != nil {
 		return err
 	}
 
-	s.Send(ctx, m.Replyf("World!"))
+	fmt.Fprint(w, "World!")
 	return nil
 }

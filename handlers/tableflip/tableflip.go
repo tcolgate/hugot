@@ -19,6 +19,7 @@ package handlers
 
 import (
 	"context"
+	"fmt"
 	"regexp"
 	"time"
 
@@ -68,24 +69,24 @@ func (*tableflip) Heard(ctx context.Context, w hugot.ResponseWriter, m *hugot.Me
 			time.Sleep(five)
 			if flipState == true {
 				flipState = false
-				w.Send(ctx, m.Reply(unFlip))
+				fmt.Fprint(w, unFlip)
 			}
 		}()
 
 		switch fs := tableflipRegexp.FindAllString(m.Text, 5); len(fs) {
 		case 1:
-			w.Send(ctx, m.Reply(flip))
+			fmt.Fprint(w, flip)
 		case 2:
-			w.Send(ctx, m.Reply(doubleFlip))
+			fmt.Fprint(w, doubleFlip)
 		case 3:
-			w.Send(ctx, m.Reply(tripleFlip))
+			fmt.Fprint(w, tripleFlip)
 		default:
-			w.Send(ctx, m.Reply(flipOff))
+			fmt.Fprint(w, flipOff)
 			flipState = false
 		}
 		return
 	}
 
 	flipState = false
-	w.Send(ctx, m.Reply(unFlip))
+	fmt.Fprint(w, unFlip)
 }

@@ -5,6 +5,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"strings"
 	"text/tabwriter"
@@ -25,7 +26,7 @@ func (mx *muxHelp) Command(ctx context.Context, w ResponseWriter, m *Message) er
 
 	if len(m.Args()) == 0 {
 		out := &bytes.Buffer{}
-		fmt.Fprintf(out, "```\n")
+		fmt.Fprintf(out, "```")
 		tw := new(tabwriter.Writer)
 		tw.Init(out, 0, 8, 1, ' ', 0)
 
@@ -66,23 +67,26 @@ func (mx *muxHelp) Command(ctx context.Context, w ResponseWriter, m *Message) er
 			}
 			tw.Flush()
 		}
-		w.Send(ctx, m.Reply(out.String()+"```"))
+		fmt.Fprint(out, " ```")
+
+		io.Copy(w, out)
 
 		return nil
 	}
 
 	if c, ok := mx.p.cmds[m.Args()[0]]; ok {
-		n, _ := c.Describe()
+		n, desc := c.Describe()
 		m.Text = n + " -h"
 		if len(m.Args()) > 1 {
 			m.Text = "help " + n
 		}
 		m.FlagSet = flag.NewFlagSet(n, flag.ContinueOnError)
 		m.flagOut = &bytes.Buffer{}
+		fmt.Fprintf(m.flagOut, "```Description: %s\n", desc)
 		m.FlagSet.SetOutput(m.flagOut)
-		err := c.Command(ctx, w, m)
-		log.Println(err)
-		w.Send(ctx, m.Reply("```"+m.flagOut.String()+"```"))
+		c.Command(ctx, w, m)
+		fmt.Fprint(m.flagOut, " ```")
+		io.Copy(w, m.flagOut)
 
 		return nil
 	}
@@ -94,7 +98,7 @@ func (mx *muxHelp) Command(ctx context.Context, w ResponseWriter, m *Message) er
 
 	cmdStr := strings.Join(cmdList, ",")
 
-	w.Send(ctx, m.Reply("Unkown command, available commands are: "+cmdStr))
+	fmt.Fprintf(w, "Unkown command, available commands are: %s", cmdStr)
 
 	return nil
 }

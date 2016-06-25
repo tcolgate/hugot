@@ -54,12 +54,9 @@ func (m *Message) Reply(txt string) *Message {
 	out := *m
 	out.Text = txt
 
-	if !m.Private && m.ToBot {
-		out.Text = fmt.Sprintf("@%s: %s", m.From, txt)
-	}
-
 	out.Event = nil
 	out.From = ""
+	out.To = m.From
 
 	return &out
 }

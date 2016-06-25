@@ -19,6 +19,7 @@ package handlers
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/golang/glog"
 	"github.com/tcolgate/hugot"
@@ -41,6 +42,11 @@ func (*ping) Describe() (string, string) {
 
 func (*ping) Command(ctx context.Context, w hugot.ResponseWriter, m *hugot.Message) error {
 	glog.Info("Got ping ", *m)
-	w.Send(ctx, m.Reply("PONG!"))
+	if err := m.Parse(); err != nil {
+		return err
+	}
+
+	fmt.Fprintf(w, "PONG!")
+
 	return nil
 }

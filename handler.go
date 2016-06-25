@@ -66,8 +66,10 @@ func newResponseWriter(s Sender, m Message) ResponseWriter {
 	return &responseWriter{s, m}
 }
 
-func (w *responseWriter) Write([]byte) (int, error) {
-	return 0, nil
+func (w *responseWriter) Write(bs []byte) (int, error) {
+	w.msg.Text = string(bs)
+	w.snd.Send(context.TODO(), &w.msg)
+	return len(bs), nil
 }
 
 func (w *responseWriter) SetChannel(s string) {
