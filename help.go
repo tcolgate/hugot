@@ -20,8 +20,8 @@ func (mx *muxHelp) Describe() (string, string) {
 
 func (mx *muxHelp) Command(ctx context.Context, w ResponseWriter, m *Message) error {
 	log.Println(m)
-	log.Println(m.FlagSet)
 	m.Parse()
+	log.Println(m)
 
 	if len(m.Args()) == 0 {
 		out := &bytes.Buffer{}
@@ -30,7 +30,7 @@ func (mx *muxHelp) Command(ctx context.Context, w ResponseWriter, m *Message) er
 		tw.Init(out, 0, 8, 1, ' ', 0)
 
 		if len(mx.p.cmds) > 0 {
-			fmt.Fprintf(w, "Available commands are:\n")
+			fmt.Fprintf(out, "Available commands are:\n")
 			for _, h := range mx.p.cmds {
 				n, d := h.Describe()
 				fmt.Fprintf(tw, "  %s\t - %s\n", n, d)
@@ -67,6 +67,8 @@ func (mx *muxHelp) Command(ctx context.Context, w ResponseWriter, m *Message) er
 			tw.Flush()
 		}
 		w.Send(ctx, m.Reply(out.String()+"```"))
+
+		return nil
 	}
 
 	if c, ok := mx.p.cmds[m.Args()[0]]; ok {

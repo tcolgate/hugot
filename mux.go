@@ -191,15 +191,17 @@ func (mx *Mux) Describe() (string, string) {
 
 func (mx *Mux) SelectHandlers(m *Message) []Handler {
 	hs := []Handler{}
-	var cmd CommandHandler
 	cmdStr := ""
 
 	if tks := strings.Fields(m.Text); m.ToBot && len(tks) > 0 {
 		// We should add the help handler here
 		cmdStr = tks[0]
-		if _, ok := mx.cmds[cmdStr]; ok {
-			cmd = mx.cmds[cmdStr]
+		if cmd, ok := mx.cmds[cmdStr]; ok {
 			hs = append(hs, Handler(cmd))
+		} else {
+			// redirect this to the help handler
+			m.Text = "help " + m.Text
+			hs = append(hs, Handler(mx.cmds["help"]))
 		}
 	}
 
@@ -211,12 +213,6 @@ func (mx *Mux) SelectHandlers(m *Message) []Handler {
 				hs = append(hs, Handler(hh))
 			}
 		}
-	}
-
-	// We were sent a direct message, but we don't
-	// have a matching command
-	if m.ToBot && cmd == nil {
-		// We should add the help handler here
 	}
 
 	// We run all raw message handlers
