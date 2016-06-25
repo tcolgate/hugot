@@ -18,7 +18,7 @@ type User string
 type Channel string
 
 // SenderReceiver is used to both send a receive messages
-type SenderReceiver interface {
+type Adapter interface {
 	Sender
 	Receiver
 }

@@ -25,13 +25,13 @@ import (
 )
 
 func init() {
-	hugot.Add(New())
+	hugot.AddCommandHandler(New())
 }
 
 type ping struct {
 }
 
-func New() hugot.Handler {
+func New() hugot.CommandHandler {
 	return &ping{}
 }
 
@@ -39,8 +39,8 @@ func (*ping) Describe() (string, string) {
 	return "ping", "replies Pong to any ping"
 }
 
-func (*ping) Command(ctx context.Context, s hugot.Sender, m *hugot.Message) error {
+func (*ping) Command(ctx context.Context, w hugot.ResponseWriter, m *hugot.Message) error {
 	glog.Info("Got ping ", *m)
-	s.Send(ctx, m.Reply("PONG!"))
+	w.Send(ctx, m.Reply("PONG!"))
 	return nil
 }

@@ -22,6 +22,7 @@ import (
 	"context"
 	"errors"
 	"flag"
+	"io"
 	"regexp"
 	"runtime/debug"
 
@@ -45,11 +46,47 @@ type Handler interface {
 	Describer
 }
 
+type ResponseWriter interface {
+	Sender
+	io.Writer
+
+	// Force this message to a certain channel
+	SetChannel(s string)
+
+	// Force this message to a certain user
+	SetTo(to string)
+}
+
+type responseWriter struct {
+	snd Sender
+	msg Message
+}
+
+func newResponseWriter(s Sender, m Message) ResponseWriter {
+	return &responseWriter{s, m}
+}
+
+func (w *responseWriter) Write([]byte) (int, error) {
+	return 0, nil
+}
+
+func (w *responseWriter) SetChannel(s string) {
+	w.msg.To = s
+}
+
+func (w *responseWriter) SetTo(s string) {
+	w.msg.Channel = s
+}
+
+func (w *responseWriter) Send(ctx context.Context, m *Message) {
+	w.snd.Send(ctx, m)
+}
+
 // RawHandler will recieve every message  sent to the handler, without
 // any filtering.
 type RawHandler interface {
 	Handler
-	Handle(ctx context.Context, s Sender, m *Message) error
+	Handle(ctx context.Context, w ResponseWriter, m *Message) error
 }
 
 // BackgroundHandler gets run when the bot starts listening. They are
@@ -57,21 +94,21 @@ type RawHandler interface {
 // specific incoming message.
 type BackgroundHandler interface {
 	Handler
-	BackgroundHandle(ctx context.Context, s Sender)
+	BackgroundHandle(ctx context.Context, w ResponseWriter)
 }
 
 // HearsHandler is a handler which responds to messages matching a specific
 // pattern.
 type HearsHandler interface {
 	Handler
-	Hears() *regexp.Regexp                                                  // Returns the regexp we want to hear
-	Heard(ctx context.Context, s Sender, m *Message, submatches [][]string) // Called once a message matches, and is passed any submatches from the regexp capture groups
+	Hears() *regexp.Regexp                                                          // Returns the regexp we want to hear
+	Heard(ctx context.Context, w ResponseWriter, m *Message, submatches [][]string) // Called once a message matches, and is passed any submatches from the regexp capture groups
 }
 
 // HearsHandler handlers are used to implement CLI style commands
 type CommandHandler interface {
 	Handler
-	Command(ctx context.Context, s Sender, m *Message) error
+	Command(ctx context.Context, w ResponseWriter, m *Message) error
 }
 
 type SubCommandHandler interface {
@@ -87,23 +124,20 @@ func glogPanic() {
 	}
 }
 
-func runHandlers(ctx context.Context, a SenderReceiver, h Handler) {
+func runHandlers(ctx context.Context, a Adapter, h Handler) {
 	if bh, ok := h.(BackgroundHandler); ok {
-		runBGHandler(ctx, a, bh)
+		runBGHandler(ctx, newResponseWriter(a, Message{}), bh)
 	}
 
 	for {
 		select {
 		case m := <-a.Receive():
-			glog.Infoln(m)
-			m.SenderReceiver = a
-
 			if rh, ok := h.(RawHandler); ok {
-				go runRawHandler(ctx, rh, m)
+				go runRawHandler(ctx, newResponseWriter(a, *m), rh, m)
 			}
 
 			if hh, ok := h.(HearsHandler); ok {
-				go runHearsHandler(ctx, hh, m)
+				go runHearsHandler(ctx, newResponseWriter(a, *m), hh, m)
 			}
 		case <-ctx.Done():
 			return
@@ -111,52 +145,52 @@ func runHandlers(ctx context.Context, a SenderReceiver, h Handler) {
 	}
 }
 
-func runOneHandler(ctx context.Context, h Handler, m *Message) {
+func runOneHandler(ctx context.Context, w ResponseWriter, h Handler, m *Message) {
 	if rh, ok := h.(RawHandler); ok {
-		go runRawHandler(ctx, rh, m)
+		go runRawHandler(ctx, w, rh, m)
 	}
 
 	if hh, ok := h.(HearsHandler); ok {
-		go runHearsHandler(ctx, hh, m)
+		go runHearsHandler(ctx, w, hh, m)
 	}
 
 	if hh, ok := h.(CommandHandler); ok {
-		go runCommandHandler(ctx, hh, m)
+		go runCommandHandler(ctx, w, hh, m)
 	}
 }
 
-func runBGHandler(ctx context.Context, s Sender, h BackgroundHandler) {
+func runBGHandler(ctx context.Context, w ResponseWriter, h BackgroundHandler) {
 	glog.Infof("Starting background %v\n", h)
 	go func(ctx context.Context, bh BackgroundHandler) {
 		defer glogPanic()
-		h.BackgroundHandle(ctx, s)
+		h.BackgroundHandle(ctx, w)
 	}(ctx, h)
 }
 
-func runRawHandler(ctx context.Context, h RawHandler, m *Message) {
+func runRawHandler(ctx context.Context, w ResponseWriter, h RawHandler, m *Message) {
 	defer glogPanic()
 
-	h.Handle(ctx, m.SenderReceiver, m)
+	h.Handle(ctx, w, m)
 }
 
-func runHearsHandler(ctx context.Context, h HearsHandler, m *Message) bool {
+func runHearsHandler(ctx context.Context, w ResponseWriter, h HearsHandler, m *Message) bool {
 	defer glogPanic()
 
 	if mtchs := h.Hears().FindAllStringSubmatch(m.Text, -1); mtchs != nil {
-		h.Heard(ctx, m.SenderReceiver, m, mtchs)
+		h.Heard(ctx, w, m, mtchs)
 		return true
 	}
 	return false
 }
 
-func runCommandHandler(ctx context.Context, h CommandHandler, m *Message) {
+func runCommandHandler(ctx context.Context, w ResponseWriter, h CommandHandler, m *Message) {
 	defer glogPanic()
 	var err error
 
 	if m.args == nil {
 		m.args, err = shellwords.Parse(m.Text)
 		if err != nil {
-			m.SenderReceiver.Send(ctx, m.Reply("Could not parse as command line, "+err.Error()))
+			w.Send(ctx, m.Reply("Could not parse as command line, "+err.Error()))
 		}
 	}
 
@@ -164,18 +198,18 @@ func runCommandHandler(ctx context.Context, h CommandHandler, m *Message) {
 	m.FlagSet = flag.NewFlagSet(m.args[0], flag.ContinueOnError)
 	m.FlagSet.SetOutput(m.flagOut)
 
-	err = h.Command(ctx, m.SenderReceiver, m)
+	err = h.Command(ctx, w, m)
 
 	switch err {
 	case nil:
 	case ErrNextCommand:
 	case ErrAskNicely:
-		m.SenderReceiver.Send(ctx, m.Reply("You should ask Nicely"))
+		w.Send(ctx, m.Reply("You should ask Nicely"))
 	case ErrUnAuthorized:
-		m.SenderReceiver.Send(ctx, m.Reply("You are not authorized to do that"))
+		w.Send(ctx, m.Reply("You are not authorized to do that"))
 	case ErrNeedsPrivacy:
-		m.SenderReceiver.Send(ctx, m.Reply("You should ask that in private"))
+		w.Send(ctx, m.Reply("You should ask that in private"))
 	default:
-		m.SenderReceiver.Send(ctx, m.Replyf("error, %v", err.Error()))
+		w.Send(ctx, m.Replyf("error, %v", err.Error()))
 	}
 }

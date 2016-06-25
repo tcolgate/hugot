@@ -43,7 +43,7 @@ func (*testcli) Describe() (string, string) {
 	return "testcli", "does many many interesting things"
 }
 
-func (*testcli) Command(ctx context.Context, s hugot.Sender, m *hugot.Message) error {
+func (*testcli) Command(ctx context.Context, w hugot.ResponseWriter, m *hugot.Message) error {
 	t := m.String("arg", "", "A string argument")
 	i := m.Int("num", 0, "An int argument")
 	d := m.Duration("time", 1*time.Hour, "A duration argument")
@@ -51,7 +51,7 @@ func (*testcli) Command(ctx context.Context, s hugot.Sender, m *hugot.Message) e
 		return err
 	}
 
-	s.Send(ctx, m.Replyf("testclivals: (\"%v\",%v,%v)  args: %#v", *t, *i, *d, m.Args()))
+	w.Send(ctx, m.Replyf("testclivals: (\"%v\",%v,%v)  args: %#v", *t, *i, *d, m.Args()))
 	return nil
 }
 
@@ -62,7 +62,7 @@ func (*testcliHello) Describe() (string, string) {
 	return "hello", "does many many interesting things"
 }
 
-func (*testcliHello) Command(ctx context.Context, s hugot.Sender, m *hugot.Message) error {
+func (*testcliHello) Command(ctx context.Context, s hugot.ResponseWriter, m *hugot.Message) error {
 	if err := m.Parse(); err != nil {
 		return err
 	}
@@ -78,7 +78,7 @@ func (*testcliWorld) Describe() (string, string) {
 	return "world", "does many many interesting things"
 }
 
-func (*testcliWorld) Command(ctx context.Context, s hugot.Sender, m *hugot.Message) error {
+func (*testcliWorld) Command(ctx context.Context, s hugot.ResponseWriter, m *hugot.Message) error {
 	if err := m.Parse(); err != nil {
 		return err
 	}

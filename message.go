@@ -31,9 +31,8 @@ import (
 type Attachment slack.Attachment
 
 type Message struct {
-	SenderReceiver SenderReceiver // The to use for sending
-
 	Event   *slack.MessageEvent
+	To      string
 	From    string
 	Channel string
 

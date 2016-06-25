@@ -19,7 +19,7 @@ package hugot
 
 import "context"
 
-func ListenAndServe(ctx context.Context, a SenderReceiver, h Handler) {
+func ListenAndServe(ctx context.Context, a Adapter, h Handler) {
 	if h == nil {
 		h = DefaultMux
 	}

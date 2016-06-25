@@ -29,13 +29,13 @@ import (
 // From Will P
 
 func init() {
-	hugot.Add(New())
+	hugot.AddHearsHandler(New())
 }
 
 type tableflip struct {
 }
 
-func New() hugot.Handler {
+func New() hugot.HearsHandler {
 	return &tableflip{}
 }
 
@@ -53,7 +53,7 @@ func (*tableflip) Hears() *regexp.Regexp {
 var flipState bool
 var lastFlip time.Time
 
-func (*tableflip) Heard(ctx context.Context, s hugot.Sender, m *hugot.Message, submatches [][]string) {
+func (*tableflip) Heard(ctx context.Context, w hugot.ResponseWriter, m *hugot.Message, submatches [][]string) {
 	flip := `(╯°□°）╯︵ ┻━┻`
 	unFlip := `┬━┬ ノ( ゜-゜ノ)`
 	doubleFlip := "┻━┻ ︵¯\\(ツ)/¯ ︵ ┻━┻"
@@ -68,24 +68,24 @@ func (*tableflip) Heard(ctx context.Context, s hugot.Sender, m *hugot.Message, s
 			time.Sleep(five)
 			if flipState == true {
 				flipState = false
-				s.Send(ctx, m.Reply(unFlip))
+				w.Send(ctx, m.Reply(unFlip))
 			}
 		}()
 
 		switch fs := tableflipRegexp.FindAllString(m.Text, 5); len(fs) {
 		case 1:
-			s.Send(ctx, m.Reply(flip))
+			w.Send(ctx, m.Reply(flip))
 		case 2:
-			s.Send(ctx, m.Reply(doubleFlip))
+			w.Send(ctx, m.Reply(doubleFlip))
 		case 3:
-			s.Send(ctx, m.Reply(tripleFlip))
+			w.Send(ctx, m.Reply(tripleFlip))
 		default:
-			s.Send(ctx, m.Reply(flipOff))
+			w.Send(ctx, m.Reply(flipOff))
 			flipState = false
 		}
 		return
 	}
 
 	flipState = false
-	s.Send(ctx, m.Reply(unFlip))
+	w.Send(ctx, m.Reply(unFlip))
 }

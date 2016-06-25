@@ -46,7 +46,7 @@ type slack struct {
 	receiver chan client.RTMEvent
 }
 
-func New(token, nick string) (hugot.SenderReceiver, error) {
+func New(token, nick string) (hugot.Adapter, error) {
 	s := slack{nick: nick}
 	if token == "" {
 		return nil, errors.New("Slack Token must be set")

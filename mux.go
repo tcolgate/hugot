@@ -60,7 +60,7 @@ func NewMux(name, desc string) *Mux {
 	return mx
 }
 
-func (mx *Mux) BackgroundHandler(ctx context.Context, w Sender) {
+func (mx *Mux) BackgroundHandler(ctx context.Context, w ResponseWriter) {
 	mx.RLock()
 	defer mx.RUnlock()
 
@@ -69,12 +69,12 @@ func (mx *Mux) BackgroundHandler(ctx context.Context, w Sender) {
 	}
 }
 
-func (mx *Mux) Handle(ctx context.Context, w Sender, m *Message) error {
+func (mx *Mux) Handle(ctx context.Context, w ResponseWriter, m *Message) error {
 	mx.RLock()
 	defer mx.RUnlock()
 
 	for _, h := range mx.SelectHandlers(m) {
-		go runOneHandler(ctx, h, m)
+		go runOneHandler(ctx, w, h, m)
 	}
 
 	return nil
