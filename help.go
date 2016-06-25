@@ -69,26 +69,30 @@ func (mx *muxHelp) Command(ctx context.Context, s Sender, m *Message) error {
 		s.Send(ctx, m.Reply(out.String()+"```"))
 	}
 
-	if len(m.Args()) >= 1 {
-		if c, ok := mx.p.cmds[m.Args()[0]]; ok {
-			n, _ := c.Describe()
-			m.Text = n + " -h"
-			m.FlagSet = flag.NewFlagSet(n, flag.ContinueOnError)
-			m.flagOut = &bytes.Buffer{}
-			m.FlagSet.SetOutput(m.flagOut)
-			err := c.Command(ctx, s, m)
-			log.Println(err)
-			s.Send(ctx, m.Reply("```"+m.flagOut.String()+"```"))
-
-			return nil
-		} else {
-			argList := []string{}
-			for n := range mx.p.cmds {
-				argList = append(argList, n)
-			}
-			s.Send(ctx, m.Reply("Unkown command, available commands are: "+strings.Join(argList, ",")))
+	if c, ok := mx.p.cmds[m.Args()[0]]; ok {
+		n, _ := c.Describe()
+		m.Text = n + " -h"
+		if len(m.Args()) > 1 {
+			m.Text = "help " + n
 		}
+		m.FlagSet = flag.NewFlagSet(n, flag.ContinueOnError)
+		m.flagOut = &bytes.Buffer{}
+		m.FlagSet.SetOutput(m.flagOut)
+		err := c.Command(ctx, s, m)
+		log.Println(err)
+		s.Send(ctx, m.Reply("```"+m.flagOut.String()+"```"))
+
+		return nil
 	}
+
+	cmdList := []string{}
+	for n := range mx.p.cmds {
+		cmdList = append(cmdList, n)
+	}
+
+	cmdStr := strings.Join(cmdList, ",")
+
+	s.Send(ctx, m.Reply("Unkown command, available commands are: "+cmdStr))
 
 	return nil
 }
