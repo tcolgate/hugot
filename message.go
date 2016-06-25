@@ -22,9 +22,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"log"
 
-	"github.com/mattn/go-shellwords"
 	"github.com/nlopes/slack"
 )
 
@@ -65,16 +63,11 @@ func (m *Message) Replyf(s string, is ...interface{}) *Message {
 	return m.Reply(fmt.Sprintf(s, is...))
 }
 
-func (m *Message) NewFlagSet() error {
-	return nil
-}
-
 func (m *Message) Parse() error {
-	args, err := shellwords.Parse(m.Text)
-	if err != nil {
-		return err
+	if len(m.args) == 0 {
+		return nil
 	}
-	log.Println(args)
-
-	return m.FlagSet.Parse(args[1:])
+	err := m.FlagSet.Parse(m.args[1:])
+	m.args = m.Args()
+	return err
 }

@@ -22,7 +22,6 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
-	"strings"
 	"sync"
 
 	"github.com/golang/glog"
@@ -41,7 +40,7 @@ type Mux struct {
 	rhndlrs  []RawHandler                      // Raw handlers
 	bghndlrs []BackgroundHandler               // Long running background handlers
 	hears    map[*regexp.Regexp][]HearsHandler // Hearing handlers
-	cmds     map[string]CommandHandler         // Command handlers
+	cmds     *CommandMux                       // Command handlers
 }
 
 var DefaultMux *Mux
@@ -54,7 +53,7 @@ func NewMux(name, desc string) *Mux {
 		rhndlrs:  []RawHandler{},
 		bghndlrs: []BackgroundHandler{},
 		hears:    map[*regexp.Regexp][]HearsHandler{},
-		cmds:     map[string]CommandHandler{},
+		cmds:     NewCommandMux(nil),
 	}
 	mx.AddCommandHandler(&muxHelp{mx})
 	return mx
@@ -65,7 +64,7 @@ func (mx *Mux) BackgroundHandler(ctx context.Context, w ResponseWriter) {
 	defer mx.RUnlock()
 
 	for _, h := range mx.bghndlrs {
-		go runBGHandler(ctx, w, h)
+		go RunBackgroundHandler(ctx, h, w)
 	}
 }
 
@@ -73,8 +72,22 @@ func (mx *Mux) Handle(ctx context.Context, w ResponseWriter, m *Message) error {
 	mx.RLock()
 	defer mx.RUnlock()
 
-	for _, h := range mx.SelectHandlers(m) {
-		go runOneHandler(ctx, w, h, m)
+	err := RunCommandHandler(ctx, mx.cmds, w, m)
+
+	// If it wasn't a known command, run the hear commands
+	if err == ErrIgnored {
+		for _, hhs := range mx.hears {
+			for _, hh := range hhs {
+				mc := *m
+				go RunHearsHandler(ctx, hh, w, &mc)
+			}
+		}
+	}
+
+	// We run all raw message handlers
+	for _, rh := range mx.rhndlrs {
+		mc := *m
+		go rh.Handle(ctx, w, &mc)
 	}
 
 	return nil
@@ -109,10 +122,9 @@ func (mx *Mux) Add(h Handler) error {
 
 	mx.Lock()
 	defer mx.Unlock()
-	name, _ := h.Describe()
+	//	name, _ := h.Describe()
 
 	if !used {
-		glog.Errorf("failed to register %v, not a recognised handler type", name)
 		return fmt.Errorf("Don't know how to use %T as a handler", h)
 	}
 
@@ -128,10 +140,9 @@ func AddRawHandler(h RawHandler) error {
 func (mx *Mux) AddRawHandler(h RawHandler) error {
 	mx.Lock()
 	defer mx.Unlock()
-	name, _ := h.Describe()
+	//	name, _ := h.Describe()
 
 	if h, ok := h.(RawHandler); ok {
-		glog.Errorf("Registered raw handler %v", name)
 		mx.rhndlrs = append(mx.rhndlrs, h)
 	}
 
@@ -145,9 +156,8 @@ func AddBackgroundHandler(h BackgroundHandler) error {
 func (mx *Mux) AddBackgroundHandler(h BackgroundHandler) error {
 	mx.Lock()
 	defer mx.Unlock()
-	name, _ := h.Describe()
+	//name, _ := h.Describe()
 
-	glog.Errorf("Registered baclground handler %v", name)
 	mx.bghndlrs = append(mx.bghndlrs, h)
 
 	return nil
@@ -169,91 +179,93 @@ func (mx *Mux) AddHearsHandler(h HearsHandler) error {
 	return nil
 }
 
-func AddCommandHandler(h CommandHandler) error {
+func AddCommandHandler(h CommandHandler) *CommandMux {
 	return DefaultMux.AddCommandHandler(h)
 }
 
-func (mx *Mux) AddCommandHandler(h CommandHandler) error {
+func (mx *Mux) AddCommandHandler(h CommandHandler) *CommandMux {
 	mx.Lock()
 	defer mx.Unlock()
-	name, _ := h.Describe()
 
-	glog.Errorf("Registered command handler %v", name)
-	n := name
-	mx.cmds[n] = h
-
-	return nil
+	return mx.cmds.AddCommandHandler(h)
 }
 
 func (mx *Mux) Describe() (string, string) {
 	return mx.name, mx.desc
 }
 
-func (mx *Mux) SelectHandlers(m *Message) []Handler {
-	hs := []Handler{}
-	cmdStr := ""
+var (
+	// ErrIgnore
+	ErrIgnored = errors.New("the handler ignored the message")
 
-	if tks := strings.Fields(m.Text); m.ToBot && len(tks) > 0 {
-		// We should add the help handler here
-		cmdStr = tks[0]
-		if cmd, ok := mx.cmds[cmdStr]; ok {
-			hs = append(hs, Handler(cmd))
-		} else {
-			// redirect this to the help handler
-			m.Text = "help " + m.Text
-			hs = append(hs, Handler(mx.cmds["help"]))
-		}
-	}
-
-	// if this isn't a help request, we'll apply
-	// all the hear handlers
-	if cmdStr != "help" {
-		for _, hhs := range mx.hears {
-			for _, hh := range hhs {
-				hs = append(hs, Handler(hh))
-			}
-		}
-	}
-
-	// We run all raw message handlers
-	for _, rh := range mx.rhndlrs {
-		hs = append(hs, Handler(rh))
-	}
-
-	return hs
-}
-
-// ErrNextCommand is returned if the command wishes the message
-// to be passed to one of the SubCommands.
-var ErrNextCommand = errors.New("pass this to the next command")
+	// ErrNextCommand is returned if the command wishes the message
+	// to be passed to one of the SubCommands.
+	ErrNextCommand = errors.New("pass this to the next command")
+)
 
 type CommandMux struct {
-	name string
-	desc string
-	*sync.RWMutex
+	base    CommandHandler
 	subCmds map[string]CommandHandler // Command handlers
 }
 
-// NewCommandMux returns a CommandMux using the provided
-// CommandHandler as the base handler
-func NewCommandMux(name string, description string) *CommandMux {
+func NewCommandMux(base CommandHandler) *CommandMux {
 	mx := &CommandMux{
+		base:    base,
 		subCmds: map[string]CommandHandler{},
 	}
 	return mx
 }
 
-func (cx *CommandMux) AddSubCommand(c CommandHandler) {
-	cx.Lock()
-	defer cx.Unlock()
-
+func (cx *CommandMux) AddCommandHandler(c CommandHandler) *CommandMux {
 	n, _ := c.Describe()
-	cx.subCmds[n] = c
+
+	subMux := NewCommandMux(c)
+	cx.subCmds[n] = subMux
+	return subMux
 }
 
-func (*CommandMux) Command(ctx context.Context, h CommandHandler, m *Message) {
+// not sure what to do here.
+func (cx *CommandMux) Describe() (string, string) {
+	if cx.base != nil {
+		return cx.base.Describe()
+	}
+	return "", ""
 }
 
-func (*CommandMux) SubCommands() map[string]CommandHandler {
-	return nil
+func (cx *CommandMux) Command(ctx context.Context, w ResponseWriter, m *Message) error {
+	var err error
+	if cx.base != nil {
+		err = cx.base.Command(ctx, w, m)
+	}
+
+	glog.Infof("IN COMMANDMUX COMMAND %v, %v, %v", err, m.args, cx.subCmds)
+	if len(m.args) == 0 {
+		return fmt.Errorf("handler requested next command, but no args remain")
+	}
+
+	subs := cx.subCmds
+	for {
+		if cmd, ok := subs[m.args[0]]; ok {
+			err = cmd.Command(ctx, w, m)
+			if err != ErrNextCommand {
+				break
+			}
+			var subh CommandWithSubsHandler
+			var ok bool
+			if subh, ok = cmd.(CommandWithSubsHandler); !ok {
+				glog.Infof("NOT A SUBS HANDLER")
+				return nil
+			}
+			subs = subh.SubCommands()
+		} else {
+			err = ErrUnknownCommand
+			break
+		}
+	}
+
+	return err
+}
+
+func (cx *CommandMux) SubCommands() map[string]CommandHandler {
+	return cx.subCmds
 }

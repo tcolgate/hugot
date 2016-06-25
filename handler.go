@@ -31,9 +31,10 @@ import (
 )
 
 var (
-	ErrAskNicely    = errors.New("potentially dangerous, ask nicely")
-	ErrUnAuthorized = errors.New("you are not authorized to perform this action")
-	ErrNeedsPrivacy = errors.New("potentially dangerous, ask me in private")
+	ErrUnknownCommand = errors.New("unknown command")
+	ErrAskNicely      = errors.New("potentially dangerous, ask nicely")
+	ErrUnAuthorized   = errors.New("you are not authorized to perform this action")
+	ErrNeedsPrivacy   = errors.New("potentially dangerous, ask me in private")
 )
 
 // Describer can return a name and description.
@@ -113,7 +114,7 @@ type CommandHandler interface {
 	Command(ctx context.Context, w ResponseWriter, m *Message) error
 }
 
-type SubCommandHandler interface {
+type CommandWithSubsHandler interface {
 	CommandHandler
 	SubCommands() map[string]CommandHandler
 }
@@ -126,20 +127,24 @@ func glogPanic() {
 	}
 }
 
-func runHandlers(ctx context.Context, a Adapter, h Handler) {
+func RunHandlers(ctx context.Context, h Handler, a Adapter) {
 	if bh, ok := h.(BackgroundHandler); ok {
-		runBGHandler(ctx, newResponseWriter(a, Message{}), bh)
+		RunBackgroundHandler(ctx, bh, newResponseWriter(a, Message{}))
 	}
 
 	for {
 		select {
 		case m := <-a.Receive():
 			if rh, ok := h.(RawHandler); ok {
-				go runRawHandler(ctx, newResponseWriter(a, *m), rh, m)
+				go RunRawHandler(ctx, rh, newResponseWriter(a, *m), m)
 			}
 
 			if hh, ok := h.(HearsHandler); ok {
-				go runHearsHandler(ctx, newResponseWriter(a, *m), hh, m)
+				go RunHearsHandler(ctx, hh, newResponseWriter(a, *m), m)
+			}
+
+			if ch, ok := h.(CommandHandler); ok {
+				go RunCommandHandler(ctx, ch, newResponseWriter(a, *m), m)
 			}
 		case <-ctx.Done():
 			return
@@ -147,21 +152,7 @@ func runHandlers(ctx context.Context, a Adapter, h Handler) {
 	}
 }
 
-func runOneHandler(ctx context.Context, w ResponseWriter, h Handler, m *Message) {
-	if rh, ok := h.(RawHandler); ok {
-		go runRawHandler(ctx, w, rh, m)
-	}
-
-	if hh, ok := h.(HearsHandler); ok {
-		go runHearsHandler(ctx, w, hh, m)
-	}
-
-	if hh, ok := h.(CommandHandler); ok {
-		go runCommandHandler(ctx, w, hh, m)
-	}
-}
-
-func runBGHandler(ctx context.Context, w ResponseWriter, h BackgroundHandler) {
+func RunBackgroundHandler(ctx context.Context, h BackgroundHandler, w ResponseWriter) {
 	glog.Infof("Starting background %v\n", h)
 	go func(ctx context.Context, bh BackgroundHandler) {
 		defer glogPanic()
@@ -169,13 +160,14 @@ func runBGHandler(ctx context.Context, w ResponseWriter, h BackgroundHandler) {
 	}(ctx, h)
 }
 
-func runRawHandler(ctx context.Context, w ResponseWriter, h RawHandler, m *Message) {
+func RunRawHandler(ctx context.Context, h RawHandler, w ResponseWriter, m *Message) bool {
 	defer glogPanic()
-
 	h.Handle(ctx, w, m)
+
+	return false
 }
 
-func runHearsHandler(ctx context.Context, w ResponseWriter, h HearsHandler, m *Message) bool {
+func RunHearsHandler(ctx context.Context, h HearsHandler, w ResponseWriter, m *Message) bool {
 	defer glogPanic()
 
 	if mtchs := h.Hears().FindAllStringSubmatch(m.Text, -1); mtchs != nil {
@@ -185,7 +177,7 @@ func runHearsHandler(ctx context.Context, w ResponseWriter, h HearsHandler, m *M
 	return false
 }
 
-func runCommandHandler(ctx context.Context, w ResponseWriter, h CommandHandler, m *Message) {
+func RunCommandHandler(ctx context.Context, h CommandHandler, w ResponseWriter, m *Message) error {
 	defer glogPanic()
 	var err error
 
@@ -196,22 +188,14 @@ func runCommandHandler(ctx context.Context, w ResponseWriter, h CommandHandler, 
 		}
 	}
 
+	if len(m.args) == 0 {
+		//nothing to do.
+		return nil
+	}
+
 	m.flagOut = &bytes.Buffer{}
 	m.FlagSet = flag.NewFlagSet(m.args[0], flag.ContinueOnError)
 	m.FlagSet.SetOutput(m.flagOut)
 
-	err = h.Command(ctx, w, m)
-
-	switch err {
-	case nil:
-	case ErrNextCommand:
-	case ErrAskNicely:
-		w.Send(ctx, m.Reply("You should ask Nicely"))
-	case ErrUnAuthorized:
-		w.Send(ctx, m.Reply("You are not authorized to do that"))
-	case ErrNeedsPrivacy:
-		w.Send(ctx, m.Reply("You should ask that in private"))
-	default:
-		w.Send(ctx, m.Replyf("error, %v", err.Error()))
-	}
+	return h.Command(ctx, w, m)
 }

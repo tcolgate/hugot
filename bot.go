@@ -24,5 +24,5 @@ func ListenAndServe(ctx context.Context, a Adapter, h Handler) {
 		h = DefaultMux
 	}
 
-	runHandlers(ctx, a, h)
+	RunHandlers(ctx, h, a)
 }
