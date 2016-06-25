@@ -32,9 +32,22 @@ import (
 
 var (
 	ErrUnknownCommand = errors.New("unknown command")
-	ErrAskNicely      = errors.New("potentially dangerous, ask nicely")
-	ErrUnAuthorized   = errors.New("you are not authorized to perform this action")
-	ErrNeedsPrivacy   = errors.New("potentially dangerous, ask me in private")
+
+	ErrAskNicely    = errors.New("potentially dangerous, ask nicely")
+	ErrUnAuthorized = errors.New("you are not authorized to perform this action")
+	ErrNeedsPrivacy = errors.New("potentially dangerous, ask me in private")
+
+	// ErrIgnore
+	ErrIgnored = errors.New("the handler ignored the message")
+
+	// ErrSkipHears is returned if the command wishes any
+	// following hear handlers to be skipped, (e.g used for
+	// help messages.
+	ErrSkipHears = errors.New("skip hear messages")
+
+	// ErrNextCommand is returned if the command wishes the message
+	// to be passed to one of the SubCommands.
+	ErrNextCommand = errors.New("pass this to the next command")
 )
 
 // Describer can return a name and description.

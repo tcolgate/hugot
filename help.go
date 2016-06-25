@@ -3,9 +3,11 @@ package hugot
 import (
 	"bytes"
 	"context"
+	"flag"
 	"fmt"
 	"io"
 	"log"
+	"strings"
 	"text/tabwriter"
 )
 
@@ -28,16 +30,14 @@ func (mx *muxHelp) Command(ctx context.Context, w ResponseWriter, m *Message) er
 		tw := new(tabwriter.Writer)
 		tw.Init(out, 0, 8, 1, ' ', 0)
 
-		/*
-			if len(mx.p.cmds) > 0 {
-				fmt.Fprintf(out, "Available commands are:\n")
-				for _, h := range mx.p.cmds {
-					n, d := h.Describe()
-					fmt.Fprintf(tw, "  %s\t - %s\n", n, d)
-				}
-				tw.Flush()
+		if len(mx.p.cmds.SubCommands()) > 0 {
+			fmt.Fprintf(out, "Available commands are:\n")
+			for _, h := range mx.p.cmds.SubCommands() {
+				n, d := h.Describe()
+				fmt.Fprintf(tw, "  %s\t - %s\n", n, d)
 			}
-		*/
+			tw.Flush()
+		}
 
 		if len(mx.p.hears) > 0 {
 			fmt.Fprintf(out, "Active hear handlers are patternss are:\n")
@@ -74,33 +74,31 @@ func (mx *muxHelp) Command(ctx context.Context, w ResponseWriter, m *Message) er
 		return nil
 	}
 
-	/*
-		if c, ok := mx.p.cmds[m.Args()[0]]; ok {
-			n, desc := c.Describe()
-			m.Text = n + " -h"
-			if len(m.Args()) > 1 {
-				m.Text = "help " + n
-			}
-			m.FlagSet = flag.NewFlagSet(n, flag.ContinueOnError)
-			m.flagOut = &bytes.Buffer{}
-			fmt.Fprintf(m.flagOut, "```Description: %s\n", desc)
-			m.FlagSet.SetOutput(m.flagOut)
-			c.Command(ctx, w, m)
-			fmt.Fprint(m.flagOut, " ```")
-			io.Copy(w, m.flagOut)
-
-			return nil
+	if c, ok := mx.p.cmds.SubCommands()[m.Args()[0]]; ok {
+		n, desc := c.Describe()
+		m.Text = n + " -h"
+		if len(m.Args()) > 1 {
+			m.Text = "help " + n
 		}
+		m.FlagSet = flag.NewFlagSet(n, flag.ContinueOnError)
+		m.flagOut = &bytes.Buffer{}
+		fmt.Fprintf(m.flagOut, "```Description: %s\n", desc)
+		m.FlagSet.SetOutput(m.flagOut)
+		c.Command(ctx, w, m)
+		fmt.Fprint(m.flagOut, " ```")
+		io.Copy(w, m.flagOut)
 
-		cmdList := []string{}
-		for n := range mx.p.cmds {
-			cmdList = append(cmdList, n)
-		}
+		return nil
+	}
 
-		cmdStr := strings.Join(cmdList, ",")
+	cmdList := []string{}
+	for n := range mx.p.cmds.SubCommands() {
+		cmdList = append(cmdList, n)
+	}
 
-		fmt.Fprintf(w, "Unkown command, available commands are: %s", cmdStr)
-	*/
+	cmdStr := strings.Join(cmdList, ",")
+
+	fmt.Fprintf(w, "Unkown command, available commands are: %s", cmdStr)
 
 	return nil
 }

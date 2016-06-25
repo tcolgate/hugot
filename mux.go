@@ -19,8 +19,8 @@ package hugot
 
 import (
 	"context"
-	"errors"
 	"fmt"
+	"log"
 	"regexp"
 	"sync"
 
@@ -71,11 +71,15 @@ func (mx *Mux) BackgroundHandler(ctx context.Context, w ResponseWriter) {
 func (mx *Mux) Handle(ctx context.Context, w ResponseWriter, m *Message) error {
 	mx.RLock()
 	defer mx.RUnlock()
+	err := ErrIgnored
 
-	err := RunCommandHandler(ctx, mx.cmds, w, m)
+	if m.ToBot {
+		err = RunCommandHandler(ctx, mx.cmds, w, m)
+		log.Println(err)
+	}
 
 	// If it wasn't a known command, run the hear commands
-	if err == ErrIgnored {
+	if err != ErrSkipHears {
 		for _, hhs := range mx.hears {
 			for _, hh := range hhs {
 				mc := *m
@@ -122,7 +126,6 @@ func (mx *Mux) Add(h Handler) error {
 
 	mx.Lock()
 	defer mx.Unlock()
-	//	name, _ := h.Describe()
 
 	if !used {
 		return fmt.Errorf("Don't know how to use %T as a handler", h)
@@ -140,7 +143,6 @@ func AddRawHandler(h RawHandler) error {
 func (mx *Mux) AddRawHandler(h RawHandler) error {
 	mx.Lock()
 	defer mx.Unlock()
-	//	name, _ := h.Describe()
 
 	if h, ok := h.(RawHandler); ok {
 		mx.rhndlrs = append(mx.rhndlrs, h)
@@ -193,15 +195,6 @@ func (mx *Mux) AddCommandHandler(h CommandHandler) *CommandMux {
 func (mx *Mux) Describe() (string, string) {
 	return mx.name, mx.desc
 }
-
-var (
-	// ErrIgnore
-	ErrIgnored = errors.New("the handler ignored the message")
-
-	// ErrNextCommand is returned if the command wishes the message
-	// to be passed to one of the SubCommands.
-	ErrNextCommand = errors.New("pass this to the next command")
-)
 
 type CommandMux struct {
 	base    CommandHandler
