@@ -70,7 +70,7 @@ func (mx *Mux) BackgroundHandler(ctx context.Context, w ResponseWriter) {
 func (mx *Mux) Handle(ctx context.Context, w ResponseWriter, m *Message) error {
 	mx.RLock()
 	defer mx.RUnlock()
-	var err Error
+	var err error
 
 	// We run all raw message handlers
 	for _, rh := range mx.rhndlrs {
@@ -194,14 +194,14 @@ func (mx *Mux) Describe() (string, string) {
 }
 
 type CommandMux struct {
-	base    CommandHandler
+	CommandHandler
 	subCmds map[string]CommandHandler // Command handlers
 }
 
 func NewCommandMux(base CommandHandler) *CommandMux {
 	mx := &CommandMux{
-		base:    base,
-		subCmds: map[string]CommandHandler{},
+		CommandHandler: base,
+		subCmds:        map[string]CommandHandler{},
 	}
 	return mx
 }
@@ -214,18 +214,10 @@ func (cx *CommandMux) AddCommandHandler(c CommandHandler) *CommandMux {
 	return subMux
 }
 
-// not sure what to do here.
-func (cx *CommandMux) Describe() (string, string) {
-	if cx.base != nil {
-		return cx.base.Describe()
-	}
-	return "", ""
-}
-
 func (cx *CommandMux) Command(ctx context.Context, w ResponseWriter, m *Message) error {
 	var err error
-	if cx.base != nil {
-		err = cx.base.Command(ctx, w, m)
+	if cx.CommandHandler != nil {
+		err = cx.CommandHandler.Command(ctx, w, m)
 	} else {
 		err = ErrNextCommand
 	}
@@ -254,7 +246,7 @@ func (cx *CommandMux) Command(ctx context.Context, w ResponseWriter, m *Message)
 			}
 			subs = subh.SubCommands()
 		} else {
-			err = ErrUnknownCommand{available: cmds}
+			err = fmt.Errorf("unknown command")
 			break
 		}
 	}

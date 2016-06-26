@@ -3,11 +3,11 @@ package hugot
 import (
 	"bytes"
 	"context"
-	"flag"
 	"fmt"
 	"io"
-	"strings"
 	"text/tabwriter"
+
+	"github.com/golang/glog"
 )
 
 type muxHelp struct {
@@ -28,8 +28,8 @@ func (mx *muxHelp) Command(ctx context.Context, w ResponseWriter, m *Message) er
 	if len(cmds) == 0 && initcmd == "help" {
 		mx.fullHelp(ctx, w, m)
 	} else {
-		if initcmd == "help" {
-			cmds = cmds[1:]
+		if initcmd != "help" {
+			cmds = append([]string{initcmd}, cmds...)
 		}
 		mx.cmdHelp(ctx, w, cmds)
 	}
@@ -87,49 +87,27 @@ func (mx *muxHelp) fullHelp(ctx context.Context, w ResponseWriter, m *Message) {
 
 func (mx *muxHelp) cmdHelp(ctx context.Context, w ResponseWriter, cmds []string) {
 	var ch CommandHandler
-	var ok bool
 
+	glog.Infof("%#v\n", cmds)
 	chs := mx.p.cmds.SubCommands()
 
-	//locate the right handler
-	for {
-		if ch, ok = chs[cmds[0]]; !ok {
-			// no such command, return an error
-			fmt.Fprintf(w, "NO SUCH COMMAND IN HERE")
-			return
-		}
-		if chsubs, ok := ch.(CommandWithSubsHandler); ok {
-			chs = chsubs.SubCommands()
-		}
-		cmds := cmds[1:]
+	var recHelp func(map[string]CommandHandler, []string) CommandHandler
+	recHelp = func(chs map[string]CommandHandler, cmds []string) CommandHandler {
 		if len(cmds) == 0 {
-			break
+			return ch
 		}
-	}
+		want := cmds[0]
+		left := cmds[1:]
 
-	// we found a matching handler, ask it for help
-	if c, ok := mx.p.cmds.SubCommands()[cmd]; ok {
-		for _, n := range m.Args() {
+		if mch, ok := chs[want]; ok {
 		}
-		m.FlagSet = flag.NewFlagSet(n, flag.ContinueOnError)
-		m.flagOut = &bytes.Buffer{}
-		fmt.Fprintf(m.flagOut, "```Description: %s\n", desc)
-		m.FlagSet.SetOutput(m.flagOut)
-		c.Command(ctx, w, m)
-		fmt.Fprint(m.flagOut, " ```")
-		io.Copy(w, m.flagOut)
 
-		return ErrSkipHears
+		glog.Infof("got: %v, want %#v left %#v\n", chs, want, left)
+
+		return recHelp(chs, left)
 	}
 
-	cmdList := []string{}
-	for n := range mx.p.cmds.SubCommands() {
-		cmdList = append(cmdList, n)
-	}
+	recHelp(chs, cmds)
 
-	cmdStr := strings.Join(cmdList, ",")
-
-	fmt.Fprintf(w, "Unknown command, available commands are: %s", cmdStr)
-
-	return ErrSkipHears
+	return
 }
