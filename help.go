@@ -3,8 +3,10 @@ package hugot
 import (
 	"bytes"
 	"context"
+	"flag"
 	"fmt"
 	"io"
+	"strings"
 	"text/tabwriter"
 
 	"github.com/golang/glog"
@@ -87,27 +89,46 @@ func (mx *muxHelp) fullHelp(ctx context.Context, w ResponseWriter, m *Message) {
 
 func (mx *muxHelp) cmdHelp(ctx context.Context, w ResponseWriter, cmds []string) {
 	var ch CommandHandler
+	var path []string
 
-	glog.Infof("%#v\n", cmds)
-	chs := mx.p.cmds.SubCommands()
+	glog.Infof("IN HERE\n")
 
-	var recHelp func(map[string]CommandHandler, []string) CommandHandler
-	recHelp = func(chs map[string]CommandHandler, cmds []string) CommandHandler {
-		if len(cmds) == 0 {
-			return ch
+	subs := mx.p.cmds.SubCommands()
+
+	for {
+		if cmd, ok := subs[cmds[0]]; ok {
+			path = append(path, cmds[0])
+			cmds = cmds[1:]
+			ch = cmd
+
+			if len(cmds) == 0 {
+				break
+			}
+			var subh CommandWithSubsHandler
+			var ok bool
+			if subh, ok = cmd.(CommandWithSubsHandler); !ok {
+				break
+			}
+
+			subs = subh.SubCommands()
+			n, d := subh.Describe()
+			glog.Infof("DESCRIBE %s %s\n", n, d)
+			glog.Infof("SUBSUBS %#v as %#s \n", path, subs)
+		} else {
+			fmt.Fprintf(w, "unknown command %s", cmds[0])
+			return
 		}
-		want := cmds[0]
-		left := cmds[1:]
-
-		if mch, ok := chs[want]; ok {
-		}
-
-		glog.Infof("got: %v, want %#v left %#v\n", chs, want, left)
-
-		return recHelp(chs, left)
 	}
 
-	recHelp(chs, cmds)
+	cmdStr := strings.Join(path, " ")
+	m := &Message{args: []string{cmdStr, "-help"}}
+	m.flagOut = &bytes.Buffer{}
+	m.FlagSet = flag.NewFlagSet(cmdStr, flag.ContinueOnError)
+	m.FlagSet.SetOutput(m.flagOut)
+
+	ch.Command(ctx, w, m)
+
+	fmt.Fprintf(w, "``` %s```", m.flagOut.String())
 
 	return
 }

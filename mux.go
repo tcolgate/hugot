@@ -194,16 +194,20 @@ func (mx *Mux) Describe() (string, string) {
 }
 
 type CommandMux struct {
-	CommandHandler
+	base    CommandHandler
 	subCmds map[string]CommandHandler // Command handlers
 }
 
 func NewCommandMux(base CommandHandler) *CommandMux {
 	mx := &CommandMux{
-		CommandHandler: base,
-		subCmds:        map[string]CommandHandler{},
+		base:    base,
+		subCmds: map[string]CommandHandler{},
 	}
 	return mx
+}
+
+func (cx *CommandMux) Describe() (string, string) {
+	return cx.base.Describe()
 }
 
 func (cx *CommandMux) AddCommandHandler(c CommandHandler) *CommandMux {
@@ -211,13 +215,16 @@ func (cx *CommandMux) AddCommandHandler(c CommandHandler) *CommandMux {
 
 	subMux := NewCommandMux(c)
 	cx.subCmds[n] = subMux
+
+	glog.Infof("ADDED CX CX CX %#v\n", cx.subCmds)
+
 	return subMux
 }
 
 func (cx *CommandMux) Command(ctx context.Context, w ResponseWriter, m *Message) error {
 	var err error
-	if cx.CommandHandler != nil {
-		err = cx.CommandHandler.Command(ctx, w, m)
+	if cx.base != nil {
+		err = cx.base.Command(ctx, w, m)
 	} else {
 		err = ErrNextCommand
 	}
@@ -226,34 +233,25 @@ func (cx *CommandMux) Command(ctx context.Context, w ResponseWriter, m *Message)
 		return err
 	}
 
-	glog.Infof("IN COMMANDMUX COMMAND %v, %v, %v", err, m.args, cx.subCmds)
 	if len(m.args) == 0 {
 		return fmt.Errorf("handler requested next command, but no args remain")
 	}
 
 	subs := cx.subCmds
 
-	for {
-		if cmd, ok := subs[m.args[0]]; ok {
-			err = cmd.Command(ctx, w, m)
-			if err != ErrNextCommand {
-				return err
-			}
-			var subh CommandWithSubsHandler
-			var ok bool
-			if subh, ok = cmd.(CommandWithSubsHandler); !ok {
-				return nil
-			}
-			subs = subh.SubCommands()
-		} else {
-			err = fmt.Errorf("unknown command")
-			break
+	if cmd, ok := subs[m.args[0]]; ok {
+		err = cmd.Command(ctx, w, m)
+		if err != ErrNextCommand {
+			return err
 		}
+	} else {
+		err = fmt.Errorf("unknown command")
 	}
 
 	return err
 }
 
 func (cx *CommandMux) SubCommands() map[string]CommandHandler {
+	glog.Infof("IN SUBS CX CX CX %#v\n", cx.subCmds)
 	return cx.subCmds
 }
