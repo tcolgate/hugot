@@ -194,37 +194,32 @@ func (mx *Mux) Describe() (string, string) {
 }
 
 type CommandMux struct {
-	base    CommandHandler
-	subCmds map[string]CommandHandler // Command handlers
+	CommandHandler
+	subCmds map[string]*CommandMux
 }
 
 func NewCommandMux(base CommandHandler) *CommandMux {
-	mx := &CommandMux{
-		base:    base,
-		subCmds: map[string]CommandHandler{},
-	}
-	return mx
-}
-
-func (cx *CommandMux) Describe() (string, string) {
-	return cx.base.Describe()
+	return &CommandMux{base, map[string]*CommandMux{}}
 }
 
 func (cx *CommandMux) AddCommandHandler(c CommandHandler) *CommandMux {
 	n, _ := c.Describe()
 
-	subMux := NewCommandMux(c)
-	cx.subCmds[n] = subMux
-
-	glog.Infof("ADDED CX CX CX %#v\n", cx.subCmds)
+	var subMux *CommandMux
+	if ccx, ok := c.(*CommandMux); ok {
+		cx.subCmds[n] = ccx
+	} else {
+		subMux = NewCommandMux(c)
+		cx.subCmds[n] = subMux
+	}
 
 	return subMux
 }
 
 func (cx *CommandMux) Command(ctx context.Context, w ResponseWriter, m *Message) error {
 	var err error
-	if cx.base != nil {
-		err = cx.base.Command(ctx, w, m)
+	if cx.CommandHandler != nil {
+		err = cx.CommandHandler.Command(ctx, w, m)
 	} else {
 		err = ErrNextCommand
 	}
@@ -251,7 +246,6 @@ func (cx *CommandMux) Command(ctx context.Context, w ResponseWriter, m *Message)
 	return err
 }
 
-func (cx *CommandMux) SubCommands() map[string]CommandHandler {
-	glog.Infof("IN SUBS CX CX CX %#v\n", cx.subCmds)
+func (cx *CommandMux) SubCommands() map[string]*CommandMux {
 	return cx.subCmds
 }

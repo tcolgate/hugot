@@ -88,36 +88,31 @@ func (mx *muxHelp) fullHelp(ctx context.Context, w ResponseWriter, m *Message) {
 }
 
 func (mx *muxHelp) cmdHelp(ctx context.Context, w ResponseWriter, cmds []string) {
-	var ch CommandHandler
+	var cx *CommandMux
 	var path []string
 
-	glog.Infof("IN HERE\n")
-
-	subs := mx.p.cmds.SubCommands()
+	cx = mx.p.cmds
 
 	for {
+		glog.Infof("%#v\n", cx)
+		if len(cmds) == 0 {
+			break
+		}
+		subs := cx.SubCommands()
+		if len(subs) == 0 {
+			glog.Info("ran out of commands")
+			return
+		}
+
 		if cmd, ok := subs[cmds[0]]; ok {
 			path = append(path, cmds[0])
 			cmds = cmds[1:]
-			ch = cmd
-
-			if len(cmds) == 0 {
-				break
-			}
-			var subh CommandWithSubsHandler
-			var ok bool
-			if subh, ok = cmd.(CommandWithSubsHandler); !ok {
-				break
-			}
-
-			subs = subh.SubCommands()
-			n, d := subh.Describe()
-			glog.Infof("DESCRIBE %s %s\n", n, d)
-			glog.Infof("SUBSUBS %#v as %#s \n", path, subs)
+			cx = cmd
 		} else {
 			fmt.Fprintf(w, "unknown command %s", cmds[0])
 			return
 		}
+		glog.Infof("%v %v %v\n", path, cmds, cx)
 	}
 
 	cmdStr := strings.Join(path, " ")
@@ -126,7 +121,7 @@ func (mx *muxHelp) cmdHelp(ctx context.Context, w ResponseWriter, cmds []string)
 	m.FlagSet = flag.NewFlagSet(cmdStr, flag.ContinueOnError)
 	m.FlagSet.SetOutput(m.flagOut)
 
-	ch.Command(ctx, w, m)
+	cx.Command(ctx, w, m)
 
 	fmt.Fprintf(w, "``` %s```", m.flagOut.String())
 

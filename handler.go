@@ -137,11 +137,6 @@ type CommandHandler interface {
 	Command(ctx context.Context, w ResponseWriter, m *Message) error
 }
 
-type CommandWithSubsHandler interface {
-	CommandHandler
-	SubCommands() map[string]CommandHandler
-}
-
 func glogPanic() {
 	err := recover()
 	if err != nil {

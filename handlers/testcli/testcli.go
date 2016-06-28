@@ -30,20 +30,15 @@ func init() {
 	hugot.AddCommandHandler(New())
 }
 
-type testcli struct {
-}
-
 func New() hugot.CommandHandler {
 	mux := hugot.NewCommandMux(&testcli{})
 	mux.AddCommandHandler(&testcliHello{})
-
 	wmux := mux.AddCommandHandler(&testcliWorld{})
 	wmux.AddCommandHandler(&testcliWorld2{})
-
-	glog.Infof("AGHAHG mux %v", mux.SubCommands())
-	glog.Infof("AGHAHG wmux %v", wmux.SubCommands())
-
 	return mux
+}
+
+type testcli struct {
 }
 
 func (*testcli) Describe() (string, string) {

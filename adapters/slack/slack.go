@@ -92,7 +92,9 @@ func New(token, nick string) (hugot.Adapter, error) {
 
 func (b *slack) Send(ctx context.Context, m *hugot.Message) {
 	if (m.Text != "" || len(m.Attachments) > 0) && m.Channel != "" {
-		glog.Infof("sending, %#v", *m)
+		if glog.V(3) {
+			glog.Infof("sending, %#v", *m)
+		}
 		var err error
 		p := client.NewPostMessageParameters()
 		p.AsUser = false
@@ -144,7 +146,9 @@ func (s *slack) Receive() <-chan *hugot.Message {
 
 func (s *slack) slackMsgToHugot(me *client.MessageEvent) *hugot.Message {
 	var private, tobot bool
-	glog.Infof("%#v\n", *me)
+	if glog.V(3) {
+		glog.Infof("message: %#v\n", *me)
+	}
 
 	var uname string
 
