@@ -20,6 +20,8 @@ package hugot
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"net/url"
 	"regexp"
 	"sync"
 
@@ -118,6 +120,11 @@ func (mx *Mux) Add(h Handler) error {
 
 	if h, ok := h.(HearsHandler); ok {
 		mx.AddHearsHandler(h)
+		used = true
+	}
+
+	if h, ok := h.(http.Handler); ok {
+		mx.AddHTTPHandler(h)
 		used = true
 	}
 
@@ -248,4 +255,18 @@ func (cx *CommandMux) Command(ctx context.Context, w ResponseWriter, m *Message)
 
 func (cx *CommandMux) SubCommands() map[string]*CommandMux {
 	return cx.subCmds
+}
+
+func AddHTTPHandler(h http.Handler) *url.URL {
+	return DefaultMux.AddHTTPHandler(h)
+}
+
+func (mx *Mux) AddHTTPHandler(h http.Handler) *url.URL {
+	mx.Lock()
+	defer mx.Unlock()
+
+	return nil
+}
+
+func (mx *Mux) ServeHTTP(http.ResponseWriter, *http.Request) {
 }
