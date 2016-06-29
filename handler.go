@@ -108,12 +108,46 @@ func (w *responseWriter) Send(ctx context.Context, m *Message) {
 	w.snd.Send(ctx, m)
 }
 
+type baseHandler struct {
+	name string
+	desc string
+}
+
+func (bh *baseHandler) Describe() (string, string) {
+	return bh.name, bh.desc
+}
+
+func newBaseHandler(name, desc string) Handler {
+	return &baseHandler{name, desc}
+}
+
+type RawFunc func(ctx context.Context, w ResponseWriter, m *Message) error
+
 // RawHandler will recieve every message  sent to the handler, without
 // any filtering.
 type RawHandler interface {
 	Handler
 	Handle(ctx context.Context, w ResponseWriter, m *Message) error
 }
+
+type baseRawHandler struct {
+	Handler
+	rhf RawFunc
+}
+
+func NewRawHandler(name, desc string, f RawFunc) RawHandler {
+	return &baseRawHandler{
+		Handler: newBaseHandler(name, desc),
+		rhf:     f,
+	}
+}
+
+func (brh *baseRawHandler) Handle(ctx context.Context, w ResponseWriter, m *Message) error {
+	return brh.rhf(ctx, w, m)
+}
+
+// BackgroundFunc
+type BackgroundFunc func(ctx context.Context, w ResponseWriter)
 
 // BackgroundHandler gets run when the bot starts listening. They are
 // intended for publishing messages that are not in response to any
@@ -123,6 +157,25 @@ type BackgroundHandler interface {
 	BackgroundHandle(ctx context.Context, w ResponseWriter)
 }
 
+type baseBackgroundHandler struct {
+	Handler
+	bhf BackgroundFunc
+}
+
+func NewBackgroundHandler(name, desc string, f BackgroundFunc) BackgroundHandler {
+	return &baseBackgroundHandler{
+		Handler: newBaseHandler(name, desc),
+		bhf:     f,
+	}
+}
+
+func (bbh *baseBackgroundHandler) BackgroundHandle(ctx context.Context, w ResponseWriter) {
+	bbh.bhf(ctx, w)
+}
+
+// HeardFunc
+type HeardFunc func(ctx context.Context, w ResponseWriter, m *Message, submatches [][]string) // Called once a message matches, and is passed any submatches from the regexp capture groups
+
 // HearsHandler is a handler which responds to messages matching a specific
 // pattern.
 type HearsHandler interface {
@@ -131,10 +184,51 @@ type HearsHandler interface {
 	Heard(ctx context.Context, w ResponseWriter, m *Message, submatches [][]string) // Called once a message matches, and is passed any submatches from the regexp capture groups
 }
 
-// HearsHandler handlers are used to implement CLI style commands
+type baseHearsHandler struct {
+	Handler
+	rgxp *regexp.Regexp
+	hhf  HeardFunc
+}
+
+func NewHearsHandler(name, desc string, rgxp *regexp.Regexp, f HeardFunc) HearsHandler {
+	return &baseHearsHandler{
+		Handler: newBaseHandler(name, desc),
+		rgxp:    rgxp,
+		hhf:     f,
+	}
+}
+
+func (bhh *baseHearsHandler) Hears() *regexp.Regexp {
+	return bhh.rgxp
+}
+
+func (bhh *baseHearsHandler) Heard(ctx context.Context, w ResponseWriter, m *Message, submatches [][]string) {
+	bhh.hhf(ctx, w, m, submatches)
+}
+
+// CommandFunc
+type CommandFunc func(ctx context.Context, w ResponseWriter, m *Message) error
+
+// CommandHandler handlers are used to implement CLI style commands
 type CommandHandler interface {
 	Handler
 	Command(ctx context.Context, w ResponseWriter, m *Message) error
+}
+
+type baseCommandHandler struct {
+	Handler
+	bcf CommandFunc
+}
+
+func NewCommandHandler(name, desc string, f CommandFunc) CommandHandler {
+	return &baseCommandHandler{
+		Handler: newBaseHandler(name, desc),
+		bcf:     f,
+	}
+}
+
+func (bch *baseCommandHandler) Command(ctx context.Context, w ResponseWriter, m *Message) error {
+	return bch.bcf(ctx, w, m)
 }
 
 func glogPanic() {
