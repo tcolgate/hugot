@@ -226,7 +226,7 @@ func (cx *CommandMux) AddCommandHandler(c CommandHandler) *CommandMux {
 func (cx *CommandMux) Command(ctx context.Context, w ResponseWriter, m *Message) error {
 	var err error
 	if cx.CommandHandler != nil {
-		err = cx.CommandHandler.Command(ctx, w, m)
+		err = RunCommandHandler(ctx, cx.CommandHandler, w, m)
 	} else {
 		err = ErrNextCommand
 	}
@@ -242,7 +242,7 @@ func (cx *CommandMux) Command(ctx context.Context, w ResponseWriter, m *Message)
 	subs := cx.subCmds
 
 	if cmd, ok := subs[m.args[0]]; ok {
-		err = cmd.Command(ctx, w, m)
+		err = RunCommandHandler(ctx, cmd, w, m)
 		if err != ErrNextCommand {
 			return err
 		}

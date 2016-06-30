@@ -233,7 +233,7 @@ func (bch *baseCommandHandler) Command(ctx context.Context, w ResponseWriter, m 
 
 func glogPanic() {
 	err := recover()
-	if err != nil {
+	if err != nil && err != ErrNextCommand && err != flag.ErrHelp {
 		glog.Error(err)
 		glog.Error(string(debug.Stack()))
 	}
@@ -302,12 +302,22 @@ func RunCommandHandler(ctx context.Context, h CommandHandler, w ResponseWriter, 
 
 	if len(m.args) == 0 {
 		//nothing to do.
-		return nil
+		return errors.New("command handler called with no possible arguments")
 	}
 
 	m.flagOut = &bytes.Buffer{}
 	m.FlagSet = flag.NewFlagSet(m.args[0], flag.ContinueOnError)
 	m.FlagSet.SetOutput(m.flagOut)
 
-	return h.Command(ctx, w, m)
+	err = h.Command(ctx, w, m)
+	switch {
+	case err == flag.ErrHelp:
+		fmt.Fprintf(w, "``` %s```", m.flagOut.String())
+		return nil
+	case err != nil && err != ErrNextCommand && err != ErrSkipHears:
+		fmt.Fprint(w, err.Error())
+		return nil
+	}
+
+	return err
 }

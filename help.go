@@ -122,8 +122,20 @@ func (mx *muxHelp) cmdHelp(ctx context.Context, w ResponseWriter, cmds []string)
 	m.FlagSet.SetOutput(m.flagOut)
 
 	cx.Command(ctx, w, m)
+	subs := cx.SubCommands()
+	if len(subs) > 0 {
+		fmt.Fprintf(m.flagOut, "  Sub commands:\n")
+		for n, s := range subs {
+			_, desc := s.Describe()
+			fmt.Fprintf(m.flagOut, "    %s - %s\n", n, desc)
+		}
+	}
 
-	fmt.Fprintf(w, "``` %s```", m.flagOut.String())
+	_, desc := cx.Describe()
+	fmt.Fprintf(w, "```Description: %s\n%s ```", desc, m.flagOut.String())
 
 	return
+}
+
+func formatHelp() string {
 }
