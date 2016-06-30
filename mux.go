@@ -236,7 +236,9 @@ func (cx *CommandMux) Command(ctx context.Context, w ResponseWriter, m *Message)
 	}
 
 	if len(m.args) == 0 {
-		return fmt.Errorf("handler requested next command, but no args remain")
+		n, _ := cx.Describe()
+		cmdUsage(ctx, w, cx, n, fmt.Errorf("missing sub-command"))
+		return nil
 	}
 
 	subs := cx.subCmds
@@ -247,7 +249,9 @@ func (cx *CommandMux) Command(ctx context.Context, w ResponseWriter, m *Message)
 			return err
 		}
 	} else {
-		err = fmt.Errorf("unknown command")
+		n, _ := cx.Describe()
+		cmdUsage(ctx, w, cx, n, fmt.Errorf("unknown command"))
+		return nil
 	}
 
 	return err

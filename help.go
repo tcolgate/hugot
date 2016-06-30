@@ -115,27 +115,34 @@ func (mx *muxHelp) cmdHelp(ctx context.Context, w ResponseWriter, cmds []string)
 		glog.Infof("%v %v %v\n", path, cmds, cx)
 	}
 
-	cmdStr := strings.Join(path, " ")
+	cmdUsage(ctx, w, cx, strings.Join(path, " "), nil)
+
+	return
+}
+
+func cmdUsage(ctx context.Context, w ResponseWriter, c CommandHandler, cmdStr string, err error) {
+	_, desc := c.Describe()
 	m := &Message{args: []string{cmdStr, "-help"}}
 	m.flagOut = &bytes.Buffer{}
 	m.FlagSet = flag.NewFlagSet(cmdStr, flag.ContinueOnError)
 	m.FlagSet.SetOutput(m.flagOut)
 
-	cx.Command(ctx, w, m)
-	subs := cx.SubCommands()
-	if len(subs) > 0 {
-		fmt.Fprintf(m.flagOut, "  Sub commands:\n")
-		for n, s := range subs {
-			_, desc := s.Describe()
-			fmt.Fprintf(m.flagOut, "    %s - %s\n", n, desc)
+	c.Command(ctx, w, m)
+	if subcx, ok := c.(*CommandMux); ok {
+		subs := subcx.SubCommands()
+		if len(subs) > 0 {
+			fmt.Fprintf(m.flagOut, "  Sub commands:\n")
+			for n, s := range subs {
+				_, desc := s.Describe()
+				fmt.Fprintf(m.flagOut, "    %s - %s\n", n, desc)
+			}
 		}
 	}
 
-	_, desc := cx.Describe()
-	fmt.Fprintf(w, "```Description: %s\n%s ```", desc, m.flagOut.String())
-
-	return
-}
-
-func formatHelp() string {
+	if err != nil {
+		fmt.Fprintf(w, "error, %s\n", err.Error())
+	} else {
+		fmt.Fprintf(w, "Description: %s\n", desc)
+	}
+	fmt.Fprint(w, m.flagOut.String())
 }

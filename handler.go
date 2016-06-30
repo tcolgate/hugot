@@ -296,7 +296,8 @@ func RunCommandHandler(ctx context.Context, h CommandHandler, w ResponseWriter, 
 	if m.args == nil {
 		m.args, err = shellwords.Parse(m.Text)
 		if err != nil {
-			w.Send(ctx, m.Reply("Could not parse as command line, "+err.Error()))
+			fmt.Fprint(w, m.Reply(err.Error()))
+			return nil
 		}
 	}
 
@@ -305,14 +306,15 @@ func RunCommandHandler(ctx context.Context, h CommandHandler, w ResponseWriter, 
 		return errors.New("command handler called with no possible arguments")
 	}
 
+	name := m.args[0]
 	m.flagOut = &bytes.Buffer{}
-	m.FlagSet = flag.NewFlagSet(m.args[0], flag.ContinueOnError)
+	m.FlagSet = flag.NewFlagSet(name, flag.ContinueOnError)
 	m.FlagSet.SetOutput(m.flagOut)
 
 	err = h.Command(ctx, w, m)
 	switch {
 	case err == flag.ErrHelp:
-		fmt.Fprintf(w, "``` %s```", m.flagOut.String())
+		cmdUsage(ctx, w, h, name, nil)
 		return nil
 	case err != nil && err != ErrNextCommand && err != ErrSkipHears:
 		fmt.Fprint(w, err.Error())
