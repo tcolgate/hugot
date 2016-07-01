@@ -47,7 +47,6 @@ func (*ping) Command(ctx context.Context, w hugot.ResponseWriter, m *hugot.Messa
 		return err
 	}
 
-	w.SetChannel("bottest")
 	fmt.Fprintf(w, "PONG!")
 
 	return nil
