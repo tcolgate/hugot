@@ -18,14 +18,13 @@
 package hugot
 
 import (
-	"golang.org/x/net/context"
 	"fmt"
 	"net/http"
 	"net/url"
 	"regexp"
 	"sync"
 
-	"github.com/golang/glog"
+	"golang.org/x/net/context"
 )
 
 func init() {
@@ -186,7 +185,6 @@ func (mx *Mux) AddHearsHandler(h HearsHandler) error {
 	defer mx.Unlock()
 	name, _ := h.Describe()
 
-	glog.Errorf("Registered hears handler %v", name)
 	r := h.Hears()
 	mx.hears[r] = append(mx.hears[r], h)
 
