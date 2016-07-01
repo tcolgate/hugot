@@ -17,7 +17,7 @@
 
 package hugot
 
-import "context"
+import "golang.org/x/net/context"
 
 func ListenAndServe(ctx context.Context, a Adapter, h Handler) {
 	if h == nil {

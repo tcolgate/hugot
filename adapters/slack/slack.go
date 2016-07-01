@@ -18,7 +18,7 @@
 package slack
 
 import (
-	"context"
+	"golang.org/x/net/context"
 	"errors"
 	"fmt"
 	"regexp"

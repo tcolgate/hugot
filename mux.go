@@ -18,7 +18,7 @@
 package hugot
 
 import (
-	"context"
+	"golang.org/x/net/context"
 	"fmt"
 	"net/http"
 	"net/url"

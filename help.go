@@ -2,7 +2,7 @@ package hugot
 
 import (
 	"bytes"
-	"context"
+	"golang.org/x/net/context"
 	"flag"
 	"fmt"
 	"io"
