@@ -18,11 +18,12 @@
 package slack
 
 import (
-	"golang.org/x/net/context"
 	"errors"
 	"fmt"
 	"regexp"
 	"strings"
+
+	"golang.org/x/net/context"
 
 	"github.com/golang/glog"
 	"github.com/prometheus/client_golang/prometheus"
@@ -108,10 +109,19 @@ func New(token, nick string) (hugot.Adapter, error) {
 
 func (b *slack) Send(ctx context.Context, m *hugot.Message) {
 	if (m.Text != "" || len(m.Attachments) > 0) && m.Channel != "" {
-		if glog.V(3) {
-			glog.Infof("sending, %#v", *m)
-		}
 		var err error
+		chanout := ""
+		c, err := b.GetChannel(m.Channel)
+		if err != nil {
+			glog.Errorf("unkresolvable channel, %#v", m.Channel)
+			chanout = m.Channel
+		} else {
+			chanout = c.Name
+		}
+		if glog.V(3) {
+			glog.Infof("sending, %#v to %#v", *m, chanout)
+		}
+
 		p := client.NewPostMessageParameters()
 		p.AsUser = false
 		attchs := []client.Attachment{}

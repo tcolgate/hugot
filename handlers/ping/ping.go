@@ -18,8 +18,9 @@
 package handlers
 
 import (
-	"golang.org/x/net/context"
 	"fmt"
+
+	"golang.org/x/net/context"
 
 	"github.com/golang/glog"
 	"github.com/tcolgate/hugot"
@@ -46,6 +47,7 @@ func (*ping) Command(ctx context.Context, w hugot.ResponseWriter, m *hugot.Messa
 		return err
 	}
 
+	w.SetChannel("bottest")
 	fmt.Fprintf(w, "PONG!")
 
 	return nil

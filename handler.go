@@ -19,13 +19,14 @@ package hugot
 
 import (
 	"bytes"
-	"golang.org/x/net/context"
 	"errors"
 	"flag"
 	"fmt"
 	"io"
 	"regexp"
 	"runtime/debug"
+
+	"golang.org/x/net/context"
 
 	"github.com/golang/glog"
 	"github.com/mattn/go-shellwords"
@@ -90,11 +91,11 @@ func (w *responseWriter) Write(bs []byte) (int, error) {
 }
 
 func (w *responseWriter) SetChannel(s string) {
-	w.msg.To = s
+	w.msg.Channel = s
 }
 
 func (w *responseWriter) SetTo(s string) {
-	w.msg.Channel = s
+	w.msg.To = s
 }
 
 func (w *responseWriter) Send(ctx context.Context, m *Message) {
