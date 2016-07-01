@@ -158,7 +158,7 @@ type BackgroundFunc func(ctx context.Context, w ResponseWriter)
 // specific incoming message.
 type BackgroundHandler interface {
 	Handler
-	BackgroundHandle(ctx context.Context, w ResponseWriter)
+	StartBackground(ctx context.Context, w ResponseWriter)
 }
 
 type baseBackgroundHandler struct {
@@ -173,7 +173,7 @@ func NewBackgroundHandler(name, desc string, f BackgroundFunc) BackgroundHandler
 	}
 }
 
-func (bbh *baseBackgroundHandler) BackgroundHandle(ctx context.Context, w ResponseWriter) {
+func (bbh *baseBackgroundHandler) StartBackground(ctx context.Context, w ResponseWriter) {
 	bbh.bhf(ctx, w)
 }
 
@@ -272,7 +272,7 @@ func RunBackgroundHandler(ctx context.Context, h BackgroundHandler, w ResponseWr
 	glog.Infof("Starting background %v\n", h)
 	go func(ctx context.Context, bh BackgroundHandler) {
 		defer glogPanic()
-		h.BackgroundHandle(ctx, w)
+		h.StartBackground(ctx, w)
 	}(ctx, h)
 }
 

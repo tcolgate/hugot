@@ -59,7 +59,7 @@ func NewMux(name, desc string) *Mux {
 	return mx
 }
 
-func (mx *Mux) BackgroundHandler(ctx context.Context, w ResponseWriter) {
+func (mx *Mux) StartBackground(ctx context.Context, w ResponseWriter) {
 	mx.RLock()
 	defer mx.RUnlock()
 
