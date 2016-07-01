@@ -33,7 +33,10 @@ func (mx *muxHelp) Command(ctx context.Context, w ResponseWriter, m *Message) er
 		if initcmd != "help" {
 			cmds = append([]string{initcmd}, cmds...)
 		}
-		mx.cmdHelp(ctx, w, cmds)
+		err := mx.cmdHelp(ctx, w, cmds)
+		if err != nil {
+			return err
+		}
 	}
 
 	return ErrSkipHears
@@ -41,9 +44,8 @@ func (mx *muxHelp) Command(ctx context.Context, w ResponseWriter, m *Message) er
 
 func (mx *muxHelp) fullHelp(ctx context.Context, w ResponseWriter, m *Message) {
 	out := &bytes.Buffer{}
-	fmt.Fprintf(out, "```")
 	tw := new(tabwriter.Writer)
-	tw.Init(out, 0, 8, 1, ' ', 0)
+	tw.Init(out, 0, 8, 1, '\t', 0)
 
 	if len(mx.p.cmds.SubCommands()) > 0 {
 		fmt.Fprintf(out, "Available commands are:\n")
@@ -59,7 +61,7 @@ func (mx *muxHelp) fullHelp(ctx context.Context, w ResponseWriter, m *Message) {
 		for r, hs := range mx.p.hears {
 			for _, h := range hs {
 				n, d := h.Describe()
-				fmt.Fprintf(tw, "  %s\t%s\t - %s\n", n, r.String(), d)
+				fmt.Fprintf(tw, "  %s\t`%s`\t - %s\n", n, r.String(), d)
 			}
 		}
 		tw.Flush()
@@ -82,12 +84,11 @@ func (mx *muxHelp) fullHelp(ctx context.Context, w ResponseWriter, m *Message) {
 		}
 		tw.Flush()
 	}
-	fmt.Fprint(out, " ```")
 
 	io.Copy(w, out)
 }
 
-func (mx *muxHelp) cmdHelp(ctx context.Context, w ResponseWriter, cmds []string) {
+func (mx *muxHelp) cmdHelp(ctx context.Context, w ResponseWriter, cmds []string) error {
 	var cx *CommandMux
 	var path []string
 
@@ -101,7 +102,7 @@ func (mx *muxHelp) cmdHelp(ctx context.Context, w ResponseWriter, cmds []string)
 		subs := cx.SubCommands()
 		if len(subs) == 0 {
 			glog.Info("ran out of commands")
-			return
+			return nil
 		}
 
 		if cmd, ok := subs[cmds[0]]; ok {
@@ -109,25 +110,23 @@ func (mx *muxHelp) cmdHelp(ctx context.Context, w ResponseWriter, cmds []string)
 			cmds = cmds[1:]
 			cx = cmd
 		} else {
-			fmt.Fprintf(w, "unknown command %s", cmds[0])
-			return
+			return ErrUnknownCommand
 		}
 		glog.Infof("%v %v %v\n", path, cmds, cx)
 	}
 
-	cmdUsage(ctx, w, cx, strings.Join(path, " "), nil)
-
-	return
+	fmt.Fprint(w, cmdUsage(cx, strings.Join(path, " "), nil))
+	return nil
 }
 
-func cmdUsage(ctx context.Context, w ResponseWriter, c CommandHandler, cmdStr string, err error) {
+func cmdUsage(c CommandHandler, cmdStr string, err error) error {
 	_, desc := c.Describe()
 	m := &Message{args: []string{cmdStr, "-help"}}
 	m.flagOut = &bytes.Buffer{}
 	m.FlagSet = flag.NewFlagSet(cmdStr, flag.ContinueOnError)
 	m.FlagSet.SetOutput(m.flagOut)
 
-	c.Command(ctx, w, m)
+	c.Command(context.TODO(), NewNullResponseWriter(*m), m)
 	if subcx, ok := c.(*CommandMux); ok {
 		subs := subcx.SubCommands()
 		if len(subs) > 0 {
@@ -139,10 +138,11 @@ func cmdUsage(ctx context.Context, w ResponseWriter, c CommandHandler, cmdStr st
 		}
 	}
 
+	str := ""
 	if err != nil {
-		fmt.Fprintf(w, "error, %s\n", err.Error())
+		str = fmt.Sprintf("error, %s\n", err.Error())
 	} else {
-		fmt.Fprintf(w, "Description: %s\n", desc)
+		str = fmt.Sprintf("Description: %s\n", desc)
 	}
-	fmt.Fprint(w, m.flagOut.String())
+	return ErrUsage{str + m.flagOut.String()}
 }

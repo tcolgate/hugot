@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/tcolgate/hugot"
 )
 
@@ -46,7 +45,6 @@ func (*testcli) Describe() (string, string) {
 }
 
 func (*testcli) Command(ctx context.Context, w hugot.ResponseWriter, m *hugot.Message) error {
-	glog.Info("In Here")
 	t := m.String("arg", "", "A string argument")
 	i := m.Int("num", 0, "An int argument")
 	d := m.Duration("time", 1*time.Hour, "A duration argument")
@@ -66,7 +64,6 @@ func (*testcliHello) Describe() (string, string) {
 }
 
 func (*testcliHello) Command(ctx context.Context, w hugot.ResponseWriter, m *hugot.Message) error {
-	glog.Info("In Hello")
 	if err := m.Parse(); err != nil {
 		return err
 	}
@@ -83,12 +80,10 @@ func (*testcliWorld) Describe() (string, string) {
 }
 
 func (*testcliWorld) Command(ctx context.Context, w hugot.ResponseWriter, m *hugot.Message) error {
-	glog.Info("In World")
 	if err := m.Parse(); err != nil {
 		return err
 	}
 
-	fmt.Fprint(w, "World!")
 	return hugot.ErrNextCommand
 }
 
@@ -100,7 +95,6 @@ func (*testcliWorld2) Describe() (string, string) {
 }
 
 func (*testcliWorld2) Command(ctx context.Context, w hugot.ResponseWriter, m *hugot.Message) error {
-	glog.Info("In World2")
 	if err := m.Parse(); err != nil {
 		return err
 	}

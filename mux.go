@@ -84,6 +84,10 @@ func (mx *Mux) Handle(ctx context.Context, w ResponseWriter, m *Message) error {
 		err = RunCommandHandler(ctx, mx.cmds, w, m)
 	}
 
+	if err == ErrSkipHears {
+		return nil
+	}
+
 	for _, hhs := range mx.hears {
 		for _, hh := range hhs {
 			mc := *m
@@ -93,7 +97,11 @@ func (mx *Mux) Handle(ctx context.Context, w ResponseWriter, m *Message) error {
 		}
 	}
 
-	return err
+	if err != nil {
+		fmt.Fprintf(w, "error, %s", err.Error())
+	}
+
+	return nil
 }
 
 func Add(h Handler) error {
@@ -236,22 +244,15 @@ func (cx *CommandMux) Command(ctx context.Context, w ResponseWriter, m *Message)
 	}
 
 	if len(m.args) == 0 {
-		n, _ := cx.Describe()
-		cmdUsage(ctx, w, cx, n, fmt.Errorf("missing sub-command"))
-		return nil
+		return fmt.Errorf("missing sub-command")
 	}
 
 	subs := cx.subCmds
 
 	if cmd, ok := subs[m.args[0]]; ok {
 		err = RunCommandHandler(ctx, cmd, w, m)
-		if err != ErrNextCommand {
-			return err
-		}
 	} else {
-		n, _ := cx.Describe()
-		cmdUsage(ctx, w, cx, n, fmt.Errorf("unknown command"))
-		return nil
+		return ErrUnknownCommand
 	}
 
 	return err

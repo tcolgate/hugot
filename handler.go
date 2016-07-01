@@ -32,13 +32,6 @@ import (
 )
 
 var (
-	ErrAskNicely    = errors.New("potentially dangerous, ask nicely")
-	ErrUnAuthorized = errors.New("you are not authorized to perform this action")
-	ErrNeedsPrivacy = errors.New("potentially dangerous, ask me in private")
-
-	// ErrIgnore
-	ErrIgnored = errors.New("the handler ignored the message")
-
 	// ErrSkipHears is returned if the command wishes any
 	// following hear handlers to be skipped, (e.g used for
 	// help messages.
@@ -47,17 +40,16 @@ var (
 	// ErrNextCommand is returned if the command wishes the message
 	// to be passed to one of the SubCommands.
 	ErrNextCommand = errors.New("pass this to the next command")
+
+	ErrUnknownCommand = errors.New("unknown command")
 )
 
-type ErrUnknownCommand struct {
-	Available []string
-	Wanted    string
+type ErrUsage struct {
+	string
 }
 
-func (err ErrUnknownCommand) Error() string {
-	return fmt.Sprintf("Unknown Command %s, available commands are %s",
-		err.Wanted,
-		err.Available)
+func (e ErrUsage) Error() string {
+	return e.string
 }
 
 // Describer can return a name and description.
@@ -91,8 +83,9 @@ func newResponseWriter(s Sender, m Message) ResponseWriter {
 }
 
 func (w *responseWriter) Write(bs []byte) (int, error) {
-	w.msg.Text = string(bs)
-	w.snd.Send(context.TODO(), &w.msg)
+	nmsg := w.msg
+	nmsg.Text = string(bs)
+	w.snd.Send(context.TODO(), &nmsg)
 	return len(bs), nil
 }
 
@@ -106,6 +99,16 @@ func (w *responseWriter) SetTo(s string) {
 
 func (w *responseWriter) Send(ctx context.Context, m *Message) {
 	w.snd.Send(ctx, m)
+}
+
+type nullSender struct {
+}
+
+func (nullSender) Send(ctx context.Context, m *Message) {
+}
+
+func NewNullResponseWriter(m Message) ResponseWriter {
+	return newResponseWriter(nullSender{}, m)
 }
 
 type baseHandler struct {
@@ -290,14 +293,16 @@ func RunHearsHandler(ctx context.Context, h HearsHandler, w ResponseWriter, m *M
 }
 
 func RunCommandHandler(ctx context.Context, h CommandHandler, w ResponseWriter, m *Message) error {
+	if h != nil && glog.V(2) {
+		glog.Infof("RUNNING %v %v\n", h, m.args)
+	}
 	defer glogPanic()
 	var err error
 
 	if m.args == nil {
 		m.args, err = shellwords.Parse(m.Text)
 		if err != nil {
-			fmt.Fprint(w, m.Reply(err.Error()))
-			return nil
+			return err
 		}
 	}
 
@@ -312,13 +317,9 @@ func RunCommandHandler(ctx context.Context, h CommandHandler, w ResponseWriter, 
 	m.FlagSet.SetOutput(m.flagOut)
 
 	err = h.Command(ctx, w, m)
-	switch {
-	case err == flag.ErrHelp:
-		cmdUsage(ctx, w, h, name, nil)
-		return nil
-	case err != nil && err != ErrNextCommand && err != ErrSkipHears:
-		fmt.Fprint(w, err.Error())
-		return nil
+	if err == flag.ErrHelp {
+		fmt.Fprint(w, cmdUsage(h, name, nil).Error())
+		return ErrSkipHears
 	}
 
 	return err
