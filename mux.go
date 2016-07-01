@@ -183,7 +183,6 @@ func AddHearsHandler(h HearsHandler) error {
 func (mx *Mux) AddHearsHandler(h HearsHandler) error {
 	mx.Lock()
 	defer mx.Unlock()
-	name, _ := h.Describe()
 
 	r := h.Hears()
 	mx.hears[r] = append(mx.hears[r], h)
