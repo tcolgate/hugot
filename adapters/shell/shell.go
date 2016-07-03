@@ -15,6 +15,8 @@
 // You should have received a copy of the GNU General Public License
 // along with hugot.  If not, see <http://www.gnu.org/licenses/>.
 
+// Package shell implements a simple adapter that provides a readline
+// style shell adapter for debugging purposes
 package shell
 
 import (

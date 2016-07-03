@@ -15,6 +15,8 @@
 // You should have received a copy of the GNU General Public License
 // along with hugot.  If not, see <http://www.gnu.org/licenses/>.
 
+// Package irc implements a simple adapter for IRC using
+// github.com/thoj/go-ircevent
 package irc
 
 import (
