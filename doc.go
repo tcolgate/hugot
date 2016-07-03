@@ -28,7 +28,7 @@
 //   irc - github.com/tcolgate/hugot/adapters/irc - simple irc adapter
 //   shell - github.com/tcolgate/hugot/adapters/shell - simple readline based adapter
 //
-// Examples of using these adapters can be gound in http://github.com/tcolgate/hugot/cmd
+// Examples of using these adapters can be found in http://github.com/tcolgate/hugot/cmd
 //
 // Handlers
 //
