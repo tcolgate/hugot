@@ -41,6 +41,7 @@ type Mux struct {
 	bghndlrs []BackgroundHandler               // Long running background handlers
 	hears    map[*regexp.Regexp][]HearsHandler // Hearing handlers
 	cmds     *CommandMux                       // Command handlers
+	httpm    *http.ServeMux                    // http Mux
 }
 
 var DefaultMux *Mux
@@ -54,6 +55,7 @@ func NewMux(name, desc string) *Mux {
 		bghndlrs: []BackgroundHandler{},
 		hears:    map[*regexp.Regexp][]HearsHandler{},
 		cmds:     NewCommandMux(nil),
+		httpm:    http.DefaultServeMux,
 	}
 	mx.AddCommandHandler(&muxHelp{mx})
 	return mx
@@ -130,7 +132,7 @@ func (mx *Mux) Add(h Handler) error {
 		used = true
 	}
 
-	if h, ok := h.(http.Handler); ok {
+	if h, ok := h.(HTTPHandler); ok {
 		mx.AddHTTPHandler(h)
 		used = true
 	}
@@ -259,16 +261,19 @@ func (cx *CommandMux) SubCommands() map[string]*CommandMux {
 	return cx.subCmds
 }
 
-func AddHTTPHandler(h http.Handler) *url.URL {
+func AddHTTPHandler(h HTTPHandler) *url.URL {
 	return DefaultMux.AddHTTPHandler(h)
 }
 
-func (mx *Mux) AddHTTPHandler(h http.Handler) *url.URL {
+func (mx *Mux) AddHTTPHandler(h HTTPHandler) *url.URL {
 	mx.Lock()
 	defer mx.Unlock()
 
+	n, _ := h.Describe()
+	mx.httpm.Handle(fmt.Sprintf("/%s/%s", mx.name, n), h)
 	return nil
 }
 
-func (mx *Mux) ServeHTTP(http.ResponseWriter, *http.Request) {
+func (mx *Mux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	mx.httpm.ServeHTTP(w, r)
 }

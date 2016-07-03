@@ -23,6 +23,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net/http"
 	"regexp"
 	"runtime/debug"
 
@@ -233,6 +234,28 @@ func NewCommandHandler(name, desc string, f CommandFunc) CommandHandler {
 
 func (bch *baseCommandHandler) Command(ctx context.Context, w ResponseWriter, m *Message) error {
 	return bch.bcf(ctx, w, m)
+}
+
+// CommandHandler handlers are used to implement CLI style commands
+type HTTPHandler interface {
+	Handler
+	http.Handler
+}
+
+type baseHTTPHandler struct {
+	Handler
+	httph http.Handler
+}
+
+func NewHTTPHandler(name, desc string, h http.Handler) HTTPHandler {
+	return &baseHTTPHandler{
+		Handler: newBaseHandler(name, desc),
+		httph:   h,
+	}
+}
+
+func (bwh *baseHTTPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	bwh.httph.ServeHTTP(w, r)
 }
 
 func glogPanic() {
