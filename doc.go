@@ -25,7 +25,10 @@
 // Adapters are used to integrate with external chat systems. Currently
 // the following adapters exist:
 //   slack - github.com/tcolgate/hugot/adapters/slack - for https://slack.com/
+//   irc - github.com/tcolgate/hugot/adapters/irc - simple irc adapter
 //   shell - github.com/tcolgate/hugot/adapters/shell - simple readline based adapter
+//
+// Examples of using these adapters can be gound in http://gitub.com/tcolgate/hugot/cmd
 //
 // Handlers
 //
