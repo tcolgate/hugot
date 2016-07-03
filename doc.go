@@ -49,7 +49,7 @@
 //
 // Mux
 //
-// The Mux, and CommandMux will multiple message across a set of handlers. In
+// The Mux, and CommandMux will multiplex message across a set of handlers. In
 // addition, a top level "help" Command handler is added to provide help on
 // usage of the various handlers added to it.
 //
