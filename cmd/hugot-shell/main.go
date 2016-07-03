@@ -19,6 +19,8 @@ package main
 
 import (
 	"flag"
+	"fmt"
+	"time"
 
 	"golang.org/x/net/context"
 
@@ -26,6 +28,7 @@ import (
 	bot "github.com/tcolgate/hugot"
 	"github.com/tcolgate/hugot/adapters/shell"
 
+	"github.com/tcolgate/hugot"
 	_ "github.com/tcolgate/hugot/handlers/ping"
 	_ "github.com/tcolgate/hugot/handlers/tableflip"
 	_ "github.com/tcolgate/hugot/handlers/testcli"
@@ -33,15 +36,29 @@ import (
 
 var nick = flag.String("nick", "minion", "Bot nick")
 
+func bgHandler(ctx context.Context, w hugot.ResponseWriter) {
+	fmt.Fprint(w, "Starting backgroud")
+	<-ctx.Done()
+	fmt.Fprint(w, "Stopping backgroud")
+}
+
 func main() {
 	flag.Parse()
 
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
 	a, err := shell.New(*nick)
 	if err != nil {
 		glog.Fatal(err)
 	}
 
+	hugot.AddBackgroundHandler(hugot.NewBackgroundHandler("test bg", "testing bg", bgHandler))
 	go bot.ListenAndServe(ctx, a, nil)
 	a.Main()
+
+	cancel()
+
+	<-ctx.Done()
+
+	//delay to check we get the output
+	<-time.After(time.Second * 1)
 }

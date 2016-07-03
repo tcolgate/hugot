@@ -68,7 +68,7 @@ func (s *shell) Main() {
 		for {
 			select {
 			case m := <-s.sch:
-				log.Println(m.Text)
+				log.Printf("%s: %s", s.nick, m.Text)
 			case <-done:
 				break
 			}
@@ -77,15 +77,14 @@ func (s *shell) Main() {
 	}()
 
 	for {
-		ln := rl.Line()
-		if ln.CanContinue() {
-			continue
-		} else if ln.CanBreak() {
+		ln, err := rl.Readline()
+		if err != nil {
 			break
 		}
-		s.rch <- &hugot.Message{Text: ln.Line, ToBot: true, From: s.user}
+
+		s.rch <- &hugot.Message{Text: ln, ToBot: true, From: s.user}
 	}
+
 	rl.Clean()
 	done <- struct{}{}
-	<-done
 }
