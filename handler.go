@@ -236,7 +236,7 @@ func (bch *baseCommandHandler) Command(ctx context.Context, w ResponseWriter, m 
 	return bch.bcf(ctx, w, m)
 }
 
-// CommandHandler handlers are used to implement CLI style commands
+// HTTPHandler handlers are used to add webhooks to your handlers
 type HTTPHandler interface {
 	Handler
 	http.Handler
@@ -251,6 +251,13 @@ func NewHTTPHandler(name, desc string, h http.Handler) HTTPHandler {
 	return &baseHTTPHandler{
 		Handler: newBaseHandler(name, desc),
 		httph:   h,
+	}
+}
+
+func NewHTTPHandlerFunc(name, desc string, h http.HandlerFunc) HTTPHandler {
+	return &baseHTTPHandler{
+		Handler: newBaseHandler(name, desc),
+		httph:   http.HandlerFunc(h),
 	}
 }
 

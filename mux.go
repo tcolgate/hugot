@@ -270,8 +270,9 @@ func (mx *Mux) AddHTTPHandler(h HTTPHandler) *url.URL {
 	defer mx.Unlock()
 
 	n, _ := h.Describe()
-	mx.httpm.Handle(fmt.Sprintf("/%s/%s", mx.name, n), h)
-	return nil
+	p := fmt.Sprintf("/%s/%s", mx.name, n)
+	mx.httpm.Handle(p, h)
+	return &url.URL{Path: p}
 }
 
 func (mx *Mux) ServeHTTP(w http.ResponseWriter, r *http.Request) {

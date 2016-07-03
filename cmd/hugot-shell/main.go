@@ -20,6 +20,8 @@ package main
 import (
 	"flag"
 	"fmt"
+	"log"
+	"net/http"
 	"time"
 
 	"golang.org/x/net/context"
@@ -42,6 +44,11 @@ func bgHandler(ctx context.Context, w hugot.ResponseWriter) {
 	fmt.Fprint(w, "Stopping backgroud")
 }
 
+func httpHandler(w http.ResponseWriter, r *http.Request) {
+	log.Printf("%#v", *r)
+	w.Write([]byte("hello world"))
+}
+
 func main() {
 	flag.Parse()
 
@@ -52,7 +59,12 @@ func main() {
 	}
 
 	hugot.AddBackgroundHandler(hugot.NewBackgroundHandler("test bg", "testing bg", bgHandler))
+	url := hugot.AddHTTPHandler(hugot.NewHTTPHandlerFunc("test", "test http", httpHandler))
+	log.Println(url.String())
+
 	go bot.ListenAndServe(ctx, a, nil)
+	go http.ListenAndServe(":8080", nil)
+
 	a.Main()
 
 	cancel()
