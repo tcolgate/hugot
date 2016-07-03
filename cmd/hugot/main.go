@@ -18,14 +18,16 @@
 package main
 
 import (
-	"golang.org/x/net/context"
 	"flag"
 	"os"
+
+	"golang.org/x/net/context"
 
 	"github.com/golang/glog"
 	bot "github.com/tcolgate/hugot"
 	"github.com/tcolgate/hugot/adapters/slack"
 
+	// Add some handlers
 	_ "github.com/tcolgate/hugot/handlers/ping"
 	_ "github.com/tcolgate/hugot/handlers/tableflip"
 	_ "github.com/tcolgate/hugot/handlers/testcli"

@@ -31,6 +31,8 @@ import (
 	"github.com/tcolgate/hugot/adapters/shell"
 
 	"github.com/tcolgate/hugot"
+
+	// Add some handlers
 	_ "github.com/tcolgate/hugot/handlers/ping"
 	_ "github.com/tcolgate/hugot/handlers/tableflip"
 	_ "github.com/tcolgate/hugot/handlers/testcli"

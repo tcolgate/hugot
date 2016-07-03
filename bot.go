@@ -19,6 +19,9 @@ package hugot
 
 import "golang.org/x/net/context"
 
+// ListenAndServe runs the handler h, passing all messages to/from
+// the provided adapter. The context may be used to gracefully shut
+// down the server.
 func ListenAndServe(ctx context.Context, a Adapter, h Handler) {
 	if h == nil {
 		h = DefaultMux

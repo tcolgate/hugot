@@ -26,15 +26,18 @@ import (
 	"github.com/nlopes/slack"
 )
 
-type Attachment slack.Attachment
-
+// Message describes a Message from or to a user. It is intended to
+// provided a resonable lowest common denominator for modern chat systems.
+// It takes the Slack message format to provide that minimum but makes no
+// assumption about support for any markup.
+// If used within a command handler, the message can also be used as a flag.FlagSet
+// for adding and processing the message as a CLI command.
 type Message struct {
-	Event   *slack.MessageEvent
 	To      string
 	From    string
 	Channel string
 
-	Text        string
+	Text        string // A plain text message
 	Attachments []Attachment
 
 	Private bool
@@ -46,23 +49,34 @@ type Message struct {
 	flagOut *bytes.Buffer
 }
 
+// Attachment represents a rich message attachment and is directly
+// modeled on the Slack attachments API
+type Attachment slack.Attachment
+
+// ErrBadCLI implies that we could not process this message as a
+// command line. E.g. due to potentially mismatched quoting or bad
+// escaping.
 var ErrBadCLI = errors.New("coul not process as command line")
 
+// Reply returns a messsage with Text tx and the From and To fields switched
 func (m *Message) Reply(txt string) *Message {
 	out := *m
 	out.Text = txt
 
-	out.Event = nil
 	out.From = ""
 	out.To = m.From
 
 	return &out
 }
 
+// Replyf returns message with txt set to the fmt.Printf style formatting,
+// and the from/to fields switched.
 func (m *Message) Replyf(s string, is ...interface{}) *Message {
 	return m.Reply(fmt.Sprintf(s, is...))
 }
 
+// Parse process any Args for this message in line with any flags that have
+// been added to the message.
 func (m *Message) Parse() error {
 	if len(m.args) == 0 {
 		return nil

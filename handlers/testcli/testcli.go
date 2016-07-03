@@ -15,12 +15,15 @@
 // You should have received a copy of the GNU General Public License
 // along with hugot.  If not, see <http://www.gnu.org/licenses/>.
 
-package handlers
+// Package testcli provides an example Command handler with nested
+// command handling.
+package testcli
 
 import (
-	"golang.org/x/net/context"
 	"fmt"
 	"time"
+
+	"golang.org/x/net/context"
 
 	"github.com/tcolgate/hugot"
 )

@@ -29,8 +29,11 @@ import (
 
 func init() {
 	DefaultMux = NewMux("defaultMux", "")
+	DefaultMux.httpm = http.DefaultServeMux
 }
 
+// Mux is a Handler that multiplexes messages to a set of Command, Hears, and
+// Raw handlers.
 type Mux struct {
 	name string
 	desc string
@@ -44,8 +47,11 @@ type Mux struct {
 	httpm    *http.ServeMux                    // http Mux
 }
 
+// DefaultMux is a default Mux instance, http Handlers will be added to
+// http.DefaultServeMux
 var DefaultMux *Mux
 
+// NewMux creates a new Mux.
 func NewMux(name, desc string) *Mux {
 	mx := &Mux{
 		name:     name,
@@ -55,12 +61,13 @@ func NewMux(name, desc string) *Mux {
 		bghndlrs: []BackgroundHandler{},
 		hears:    map[*regexp.Regexp][]HearsHandler{},
 		cmds:     NewCommandMux(nil),
-		httpm:    http.DefaultServeMux,
+		httpm:    http.NewServeMux(),
 	}
 	mx.AddCommandHandler(&muxHelp{mx})
 	return mx
 }
 
+// StartBackground starts any registered background handlers.
 func (mx *Mux) StartBackground(ctx context.Context, w ResponseWriter) {
 	mx.RLock()
 	defer mx.RUnlock()
@@ -70,6 +77,13 @@ func (mx *Mux) StartBackground(ctx context.Context, w ResponseWriter) {
 	}
 }
 
+// Handle implements the Handler interface. Message will first be passed to
+// any registered RawHandlers. If the message has been deemed, by the Adapter
+// to have been sent directly to the bot, any comand handlers will be processed.
+// Then, if appropriate, the message will be matched against any Hears patterns
+// and all matching Heard functions will then be called.
+// Any unrecognized errors from the Command handlers will be passed back to the
+// user that sent us the message.
 func (mx *Mux) Handle(ctx context.Context, w ResponseWriter, m *Message) error {
 	mx.RLock()
 	defer mx.RUnlock()
@@ -105,11 +119,14 @@ func (mx *Mux) Handle(ctx context.Context, w ResponseWriter, m *Message) error {
 	return nil
 }
 
+// Add adds the provided handler to the DefaultMux
 func Add(h Handler) error {
 	return DefaultMux.Add(h)
 }
 
-// Add a generic handler with potentially multiple
+// Add a generic handler that supports one or more of the handler
+// types. WARNING: This may be removed in the future. Prefer to
+// the specific Add*Handler methods.
 func (mx *Mux) Add(h Handler) error {
 	var used bool
 	if h, ok := h.(RawHandler); ok {
@@ -149,10 +166,13 @@ func (mx *Mux) Add(h Handler) error {
 	return nil
 }
 
+// AddRawHandler adds the provided handler to the DefaultMux
 func AddRawHandler(h RawHandler) error {
 	return DefaultMux.AddRawHandler(h)
 }
 
+// AddRawHandler adds the provided handler to the Mux. All
+// messages sent to the mux will be forwarded to this handler.
 func (mx *Mux) AddRawHandler(h RawHandler) error {
 	mx.Lock()
 	defer mx.Unlock()
@@ -164,10 +184,13 @@ func (mx *Mux) AddRawHandler(h RawHandler) error {
 	return nil
 }
 
+// AddBackgroundHandler adds the provided handler to the DefaultMux
 func AddBackgroundHandler(h BackgroundHandler) error {
 	return DefaultMux.AddBackgroundHandler(h)
 }
 
+// AddBackgroundHandler adds the provided handler to the Mux. It
+// will be started with the Mux is started.
 func (mx *Mux) AddBackgroundHandler(h BackgroundHandler) error {
 	mx.Lock()
 	defer mx.Unlock()
@@ -178,10 +201,14 @@ func (mx *Mux) AddBackgroundHandler(h BackgroundHandler) error {
 	return nil
 }
 
+// AddHearsHandler adds the provided handler to the DefaultMux
 func AddHearsHandler(h HearsHandler) error {
 	return DefaultMux.AddHearsHandler(h)
 }
 
+// AddHearsHandler adds the provided handler to the mux. All
+// messages matching the Hears patterns will be forwarded to
+// the handler.
 func (mx *Mux) AddHearsHandler(h HearsHandler) error {
 	mx.Lock()
 	defer mx.Unlock()
@@ -192,10 +219,14 @@ func (mx *Mux) AddHearsHandler(h HearsHandler) error {
 	return nil
 }
 
+// AddCommandHandler adds the provided handler to the DefaultMux
 func AddCommandHandler(h CommandHandler) *CommandMux {
 	return DefaultMux.AddCommandHandler(h)
 }
 
+// AddCommandHandler Adds the provided handler to the mux. The
+// returns CommandMux can be used to add sub-commands to this
+// command handler.
 func (mx *Mux) AddCommandHandler(h CommandHandler) *CommandMux {
 	mx.Lock()
 	defer mx.Unlock()
@@ -203,19 +234,30 @@ func (mx *Mux) AddCommandHandler(h CommandHandler) *CommandMux {
 	return mx.cmds.AddCommandHandler(h)
 }
 
+// Describe implements the Describe method of Handler for
+// the Mux
 func (mx *Mux) Describe() (string, string) {
 	return mx.name, mx.desc
 }
 
+// CommandMux is a handler that support "nested" command line
+// commands.
 type CommandMux struct {
 	CommandHandler
 	subCmds map[string]*CommandMux
 }
 
+// NewCommandMux creates a new CommandMux. The provided base
+// command handler will be called first. This can process any
+// initial flags if desired. If the base command handler returns
+// ErrNextCommand, any command handlers that have been added to
+// this mux will then be called with the message Args having
+// been appropriately adjusted
 func NewCommandMux(base CommandHandler) *CommandMux {
 	return &CommandMux{base, map[string]*CommandMux{}}
 }
 
+// AddCommandHandler adds a sub-command to an existing CommandMux
 func (cx *CommandMux) AddCommandHandler(c CommandHandler) *CommandMux {
 	n, _ := c.Describe()
 
@@ -230,6 +272,7 @@ func (cx *CommandMux) AddCommandHandler(c CommandHandler) *CommandMux {
 	return subMux
 }
 
+// Command implements the Command handler for a CommandMux
 func (cx *CommandMux) Command(ctx context.Context, w ResponseWriter, m *Message) error {
 	var err error
 	if cx.CommandHandler != nil {
@@ -257,14 +300,20 @@ func (cx *CommandMux) Command(ctx context.Context, w ResponseWriter, m *Message)
 	return err
 }
 
+// SubCommands returns any known subcommands of this command mux
 func (cx *CommandMux) SubCommands() map[string]*CommandMux {
 	return cx.subCmds
 }
 
+// AddHTTPHandler adds the provided handler to the DefaultMux
 func AddHTTPHandler(h HTTPHandler) *url.URL {
 	return DefaultMux.AddHTTPHandler(h)
 }
 
+// AddHTTPHandler registers h as a HTTP handler. The name
+// of the Mux, and the name of the handler are used to
+// construct a unique URL that can be used to send web
+// requests to this handler
 func (mx *Mux) AddHTTPHandler(h HTTPHandler) *url.URL {
 	mx.Lock()
 	defer mx.Unlock()
@@ -275,6 +324,8 @@ func (mx *Mux) AddHTTPHandler(h HTTPHandler) *url.URL {
 	return &url.URL{Path: p}
 }
 
+// ServeHTTP iplements http.ServeHTTP for a Mux to allow it to
+// act as a web server.
 func (mx *Mux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	mx.httpm.ServeHTTP(w, r)
 }

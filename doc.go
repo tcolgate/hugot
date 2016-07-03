@@ -17,5 +17,6 @@
 
 // Package hugot provides a simple interface for building extensible
 // chat bots in an idiomatic go style. It is heavily influenced by
-// net/http
+// net/http, and uses an internal message format that is compatible
+// with Slack messages.
 package hugot

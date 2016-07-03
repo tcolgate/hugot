@@ -15,13 +15,16 @@
 // You should have received a copy of the GNU General Public License
 // along with hugot.  If not, see <http://www.gnu.org/licenses/>.
 
-package handlers
+// Package tableflip provides an exacmple Hears handler that will
+// flip tables on behalf of embittered users.
+package tableflip
 
 import (
-	"golang.org/x/net/context"
 	"fmt"
 	"regexp"
 	"time"
+
+	"golang.org/x/net/context"
 
 	"github.com/tcolgate/hugot"
 )

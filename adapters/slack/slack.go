@@ -63,6 +63,8 @@ type slack struct {
 	receiver chan client.RTMEvent
 }
 
+// New creates a new adapter that communicates with the Slack messaging
+// API. A slack API token, and coresponding bot username must be provided
 func New(token, nick string) (hugot.Adapter, error) {
 	s := slack{nick: nick}
 	if token == "" {
@@ -107,11 +109,11 @@ func New(token, nick string) (hugot.Adapter, error) {
 	return &s, nil
 }
 
-func (b *slack) Send(ctx context.Context, m *hugot.Message) {
+func (s *slack) Send(ctx context.Context, m *hugot.Message) {
 	if (m.Text != "" || len(m.Attachments) > 0) && m.Channel != "" {
 		var err error
 		chanout := ""
-		c, err := b.GetChannel(m.Channel)
+		c, err := s.GetChannel(m.Channel)
 		if err != nil {
 			glog.Errorf("unkresolvable channel, %#v", m.Channel)
 			chanout = m.Channel
@@ -129,9 +131,9 @@ func (b *slack) Send(ctx context.Context, m *hugot.Message) {
 			attchs = append(attchs, client.Attachment(a))
 		}
 		p.Attachments = attchs
-		p.Username = b.nick
-		p.IconURL = b.icon // permit overriding this
-		_, _, err = b.api.PostMessage(m.Channel, m.Text, p)
+		p.Username = s.nick
+		p.IconURL = s.icon // permit overriding this
+		_, _, err = s.api.PostMessage(m.Channel, m.Text, p)
 		if err != nil {
 			glog.Errorf("error sending, %#v", err.Error())
 		}
@@ -233,9 +235,9 @@ func (s *slack) slackMsgToHugot(me *client.MessageEvent) *hugot.Message {
 	}
 
 	m := hugot.Message{
-		Event:   me,
 		Channel: cname,
 		From:    uname,
+		To:      "",
 		Private: private,
 		ToBot:   tobot,
 		Text:    txt,
