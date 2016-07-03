@@ -46,6 +46,11 @@ var (
 	// ErrUnknownCommand is returned by a command mux if the command did
 	// not match any of it's registered handlers.
 	ErrUnknownCommand = errors.New("unknown command")
+
+	// ErrBadCLI implies that we could not process this message as a
+	// command line. E.g. due to potentially mismatched quoting or bad
+	// escaping.
+	ErrBadCLI = errors.New("coul not process as command line")
 )
 
 // ErrUsage indicates that Command handler was used incorrectly. The
@@ -383,7 +388,7 @@ func RunCommandHandler(ctx context.Context, h CommandHandler, w ResponseWriter, 
 	if m.args == nil {
 		m.args, err = shellwords.Parse(m.Text)
 		if err != nil {
-			return err
+			return ErrBadCLI
 		}
 	}
 

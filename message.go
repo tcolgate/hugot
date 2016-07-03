@@ -19,7 +19,6 @@ package hugot
 
 import (
 	"bytes"
-	"errors"
 	"flag"
 	"fmt"
 
@@ -52,11 +51,6 @@ type Message struct {
 // Attachment represents a rich message attachment and is directly
 // modeled on the Slack attachments API
 type Attachment slack.Attachment
-
-// ErrBadCLI implies that we could not process this message as a
-// command line. E.g. due to potentially mismatched quoting or bad
-// escaping.
-var ErrBadCLI = errors.New("coul not process as command line")
 
 // Reply returns a messsage with Text tx and the From and To fields switched
 func (m *Message) Reply(txt string) *Message {
