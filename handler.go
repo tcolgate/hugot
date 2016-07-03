@@ -83,7 +83,8 @@ type ResponseWriter interface {
 	io.Writer
 
 	SetChannel(c string) // Forces messages to a certain channel
-	SetTo(to string)     // Force this message to a certain user
+	SetTo(to string)     // Forces messages to a certain user
+	SetSender(a Sender)  // Forces messages to a different sender or adapter
 }
 
 type responseWriter struct {
@@ -112,6 +113,11 @@ func (w *responseWriter) SetChannel(s string) {
 // SetChannel sets the target user for message sent via this writer
 func (w *responseWriter) SetTo(s string) {
 	w.msg.To = s
+}
+
+// SetSender sets the target adapter for sender sent via this writer
+func (w *responseWriter) SetSender(s Sender) {
+	w.snd = s
 }
 
 // Send implements the Sender interface
