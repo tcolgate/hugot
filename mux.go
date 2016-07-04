@@ -45,6 +45,7 @@ type Mux struct {
 	hears    map[*regexp.Regexp][]HearsHandler // Hearing handlers
 	cmds     *CommandMux                       // Command handlers
 	httpm    *http.ServeMux                    // http Mux
+	whsndr   Sender                            // Sender to be used by webhooks
 }
 
 // DefaultMux is a default Mux instance, http Handlers will be added to
@@ -62,6 +63,7 @@ func NewMux(name, desc string) *Mux {
 		hears:    map[*regexp.Regexp][]HearsHandler{},
 		cmds:     NewCommandMux(nil),
 		httpm:    http.NewServeMux(),
+		whsndr:   nil,
 	}
 	mx.AddCommandHandler(&muxHelp{mx})
 	return mx
@@ -69,8 +71,9 @@ func NewMux(name, desc string) *Mux {
 
 // StartBackground starts any registered background handlers.
 func (mx *Mux) StartBackground(ctx context.Context, w ResponseWriter) {
-	mx.RLock()
-	defer mx.RUnlock()
+	mx.Lock()
+	defer mx.Unlock()
+	mx.whsndr = w
 
 	for _, h := range mx.bghndlrs {
 		go RunBackgroundHandler(ctx, h, w)
@@ -149,8 +152,8 @@ func (mx *Mux) Add(h Handler) error {
 		used = true
 	}
 
-	if h, ok := h.(HTTPHandler); ok {
-		mx.AddHTTPHandler(h)
+	if h, ok := h.(WebHookHandler); ok {
+		mx.AddWebHookHandler(h)
 		used = true
 	}
 
@@ -305,22 +308,42 @@ func (cx *CommandMux) SubCommands() map[string]*CommandMux {
 	return cx.subCmds
 }
 
-// AddHTTPHandler adds the provided handler to the DefaultMux
-func AddHTTPHandler(h HTTPHandler) *url.URL {
-	return DefaultMux.AddHTTPHandler(h)
+// AddWebHookHandler adds the provided handler to the DefaultMux
+func AddWebHookHandler(h WebHookHandler) *url.URL {
+	return DefaultMux.AddWebHookHandler(h)
 }
 
-// AddHTTPHandler registers h as a HTTP handler. The name
+type webHookBridge struct {
+	m  *Mux
+	s  Sender
+	nh WebHookHandler
+}
+
+func (whb *webHookBridge) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if whb.s == nil {
+		whb.m.RLock()
+		defer whb.m.RUnlock()
+
+		whb.s = whb.m.whsndr
+	}
+	if whb.s == nil {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+	whb.nh.ReceiveHTTP(context.Background(), newResponseWriter(whb.s, Message{}), w, r)
+}
+
+// AddWebHookHandler registers h as a WebHook handler. The name
 // of the Mux, and the name of the handler are used to
 // construct a unique URL that can be used to send web
 // requests to this handler
-func (mx *Mux) AddHTTPHandler(h HTTPHandler) *url.URL {
+func (mx *Mux) AddWebHookHandler(h WebHookHandler) *url.URL {
 	mx.Lock()
 	defer mx.Unlock()
 
 	n, _ := h.Describe()
 	p := fmt.Sprintf("/%s/%s", mx.name, n)
-	mx.httpm.Handle(p, h)
+	mx.httpm.Handle(p, &webHookBridge{mx, nil, h})
 	return &url.URL{Path: p}
 }
 
