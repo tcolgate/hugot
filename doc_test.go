@@ -37,8 +37,15 @@ import (
 	_ "github.com/tcolgate/hugot/handlers/testcli"
 )
 
-var slackToken = flag.String("token", os.Getenv("SLACK_TOKEN"), "Slack API Token")
-var nick = flag.String("nick", "minion", "Bot nick")
+func init() {
+	flag.StringVar(&slackToken, "token", os.Getenv("SLACK_TOKEN"), "Slack API Token")
+	flag.StringVar(&nick, "nick", "minion", "Bot nick")
+}
+
+var (
+	slackToken string
+	nick       string
+)
 
 func Example() {
 	flag.Parse()
@@ -46,7 +53,7 @@ func Example() {
 	// The context can be used to shutdown the bot and any
 	// Background handlers gracefully.
 	ctx := context.Background()
-	a, err := slack.New(*slackToken, *nick)
+	a, err := slack.New(slackToken, nick)
 	if err != nil {
 		glog.Fatal(err)
 	}
