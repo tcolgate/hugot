@@ -278,37 +278,68 @@ func (bch *baseCommandHandler) Command(ctx context.Context, w ResponseWriter, m 
 	return bch.bcf(ctx, w, m)
 }
 
-// HTTPHandler handlers are used to add webhooks to your handlers.
-type HTTPHandler interface {
+// WebHookHandler handlers are used to add webhooks to your handlers.
+type WebHookHandler interface {
 	Handler
-	http.Handler
+	ReceiveHTTP(ctx context.Context, hw ResponseWriter, w http.ResponseWriter, r *http.Request)
 }
 
-type baseHTTPHandler struct {
+type WebHookHandlerFunc func(ctx context.Context, hw ResponseWriter, w http.ResponseWriter, r *http.Request)
+
+type baseWebHookHandler struct {
+	ctx context.Context
+	a   Adapter
 	Handler
-	httph http.Handler
+	hf WebHookHandlerFunc
 }
 
-// NewHTTPHandler creates a new HTTPHandler with the http.Handler h, and the
-// provided name and description
-func NewHTTPHandler(name, desc string, h http.Handler) HTTPHandler {
-	return &baseHTTPHandler{
+// NewWebHookPHandler creates a new WebHookHandler provided name and description.
+func (bwhh *baseWebHookHandler) ReceiveHTTP(ctx context.Context, hw ResponseWriter, w http.ResponseWriter, r *http.Request) {
+	bwhh.hf(ctx, hw, w, r)
+}
+
+// NewWebHookPHandler creates a new WebHookHandler provided name and description.
+func NewWebHookHandler(name, desc string, hf WebHookHandlerFunc) WebHookHandler {
+	return &baseWebHookHandler{
 		Handler: newBaseHandler(name, desc),
-		httph:   h,
+		hf:      hf,
 	}
 }
 
-// NewHTTPHandlerFunc creates a new HTTPHandler with the http.HandlerFunc h, and the
-// provided name and description
-func NewHTTPHandlerFunc(name, desc string, h http.HandlerFunc) HTTPHandler {
-	return &baseHTTPHandler{
+// NewNetHTTPHandlerFunc creates a new WebHookHandler with the http.HandlerFunc h, and the
+// provided name and description. The response wrtier from the webhook handler is
+// discarded
+func NewNetHTTPHandlerFunc(name, desc string, h http.HandlerFunc) WebHookHandler {
+	return &baseWebHookHandler{
 		Handler: newBaseHandler(name, desc),
-		httph:   http.HandlerFunc(h),
+		hf: func(ctx context.Context, hw ResponseWriter, w http.ResponseWriter, r *http.Request) {
+			h(w, r)
+		},
 	}
 }
 
-func (bwh *baseHTTPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	bwh.httph.ServeHTTP(w, r)
+// NewNetHTTPHandler creates a new WebHookHandler with the http.Handler h, and the
+// provided name and description. The response writer from the webhook handler is
+// discarded
+func NewNetHTTPHandler(name, desc string, h http.Handler) WebHookHandler {
+	return &baseWebHookHandler{
+		Handler: newBaseHandler(name, desc),
+		hf: func(ctx context.Context, hw ResponseWriter, w http.ResponseWriter, r *http.Request) {
+			h.ServeHTTP(w, r)
+		},
+	}
+}
+
+// NewNetHTTPHandlerFunc creates a new WebHookHandler with the http.HandlerFunc h, and the
+// provided name and description. The response wrtier from the webhook handler is
+// discarded
+func NewHTTPHandlerFunc(name, desc string, h http.HandlerFunc) WebHookHandler {
+	return &baseWebHookHandler{
+		Handler: newBaseHandler(name, desc),
+		hf: func(ctx context.Context, hw ResponseWriter, w http.ResponseWriter, r *http.Request) {
+			h(w, r)
+		},
+	}
 }
 
 func glogPanic() {

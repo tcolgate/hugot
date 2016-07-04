@@ -15,38 +15,28 @@
 // You should have received a copy of the GNU General Public License
 // along with hugot.  If not, see <http://www.gnu.org/licenses/>.
 
-package main
+// Package testcli provides an example Command handler with nested
+// command handling.
+package testcli
 
 import (
-	"flag"
+	"fmt"
 	"net/http"
-	"os"
 
 	"golang.org/x/net/context"
 
 	"github.com/golang/glog"
-	bot "github.com/tcolgate/hugot"
-	"github.com/tcolgate/hugot/adapters/slack"
-
-	// Add some handlers
-	_ "github.com/tcolgate/hugot/handlers/ping"
-	_ "github.com/tcolgate/hugot/handlers/tableflip"
-	_ "github.com/tcolgate/hugot/handlers/testcli"
-	_ "github.com/tcolgate/hugot/handlers/testweb"
+	"github.com/tcolgate/hugot"
 )
 
-var slackToken = flag.String("token", os.Getenv("SLACK_TOKEN"), "Slack API Token")
-var nick = flag.String("nick", "minion", "Bot nick")
+func init() {
+	url := hugot.AddWebHookHandler(hugot.NewWebHookHandler("testweb", "does things", handleWeb))
+	glog.Infof("url: %#v", *url)
+}
 
-func main() {
-	flag.Parse()
+func handleWeb(ctx context.Context, hw hugot.ResponseWriter, w http.ResponseWriter, r *http.Request) {
+	fmt.Fprintf(w, "Hello world")
 
-	ctx := context.Background()
-	a, err := slack.New(*slackToken, *nick)
-	if err != nil {
-		glog.Fatal(err)
-	}
-
-	go http.ListenAndServe(":8080", nil)
-	bot.ListenAndServe(ctx, a, nil)
+	hw.SetChannel("bottest")
+	fmt.Fprintf(hw, "Hello world, %#v", *r)
 }
