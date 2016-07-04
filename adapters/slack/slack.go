@@ -37,7 +37,7 @@ import (
 var (
 	slackLatency = prometheus.NewGauge(prometheus.GaugeOpts{
 		Name: "slack_latency_reports_millisecond",
-		Help: "Current temperature of the CPU.",
+		Help: "Latency of Slack in milliseconds.",
 	})
 	slackMessagesTx = prometheus.NewCounter(prometheus.CounterOpts{
 		Name: "slack_messages_sent_total",
