@@ -278,12 +278,13 @@ func (bch *baseCommandHandler) Command(ctx context.Context, w ResponseWriter, m 
 	return bch.bcf(ctx, w, m)
 }
 
-// WebHookHandler handlers are used to add webhooks to your handlers.
+// WebHookHandler handlers are used to expose a registered handler via a web server.
 type WebHookHandler interface {
 	Handler
 	ReceiveHTTP(ctx context.Context, hw ResponseWriter, w http.ResponseWriter, r *http.Request)
 }
 
+// WebHookHandlerFunc describes the called convention for a WebHook.
 type WebHookHandlerFunc func(ctx context.Context, hw ResponseWriter, w http.ResponseWriter, r *http.Request)
 
 type baseWebHookHandler struct {
@@ -298,7 +299,7 @@ func (bwhh *baseWebHookHandler) ReceiveHTTP(ctx context.Context, hw ResponseWrit
 	bwhh.hf(ctx, hw, w, r)
 }
 
-// NewWebHookPHandler creates a new WebHookHandler provided name and description.
+// NewWebHookHandler creates a new WebHookHandler provided name and description.
 func NewWebHookHandler(name, desc string, hf WebHookHandlerFunc) WebHookHandler {
 	return &baseWebHookHandler{
 		Handler: newBaseHandler(name, desc),
@@ -326,18 +327,6 @@ func NewNetHTTPHandler(name, desc string, h http.Handler) WebHookHandler {
 		Handler: newBaseHandler(name, desc),
 		hf: func(ctx context.Context, hw ResponseWriter, w http.ResponseWriter, r *http.Request) {
 			h.ServeHTTP(w, r)
-		},
-	}
-}
-
-// NewNetHTTPHandlerFunc creates a new WebHookHandler with the http.HandlerFunc h, and the
-// provided name and description. The response wrtier from the webhook handler is
-// discarded
-func NewHTTPHandlerFunc(name, desc string, h http.HandlerFunc) WebHookHandler {
-	return &baseWebHookHandler{
-		Handler: newBaseHandler(name, desc),
-		hf: func(ctx context.Context, hw ResponseWriter, w http.ResponseWriter, r *http.Request) {
-			h(w, r)
 		},
 	}
 }
