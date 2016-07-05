@@ -43,7 +43,7 @@ type Mux struct {
 	rhndlrs  []RawHandler                      // Raw handlers
 	bghndlrs []BackgroundHandler               // Long running background handlers
 	hears    map[*regexp.Regexp][]HearsHandler // Hearing handlers
-	cmds     *CommandMux                       // Command handlers
+	cmds     *CommandSet                       // Command handlers
 	httpm    *http.ServeMux                    // http Mux
 	whsndr   Sender                            // Sender to be used by webhooks
 }
@@ -61,12 +61,18 @@ func NewMux(name, desc string) *Mux {
 		rhndlrs:  []RawHandler{},
 		bghndlrs: []BackgroundHandler{},
 		hears:    map[*regexp.Regexp][]HearsHandler{},
-		cmds:     NewCommandMux(nil),
+		cmds:     NewCommandSet(),
 		httpm:    http.NewServeMux(),
 		whsndr:   nil,
 	}
 	mx.AddCommandHandler(&muxHelp{mx})
 	return mx
+}
+
+// Describe implements the Describe method of Handler for
+// the Mux
+func (mx *Mux) Describe() (string, string) {
+	return mx.name, mx.desc
 }
 
 // StartBackground starts any registered background handlers.
@@ -99,7 +105,7 @@ func (mx *Mux) Handle(ctx context.Context, w ResponseWriter, m *Message) error {
 	}
 
 	if m.ToBot {
-		err = RunCommandHandler(ctx, mx.cmds, w, m)
+		err = mx.cmds.NextCommand(ctx, w, m)
 	}
 
 	if err == ErrSkipHears {
@@ -223,89 +229,18 @@ func (mx *Mux) AddHearsHandler(h HearsHandler) error {
 }
 
 // AddCommandHandler adds the provided handler to the DefaultMux
-func AddCommandHandler(h CommandHandler) *CommandMux {
-	return DefaultMux.AddCommandHandler(h)
+func AddCommandHandler(h CommandHandler) {
+	DefaultMux.AddCommandHandler(h)
 }
 
 // AddCommandHandler Adds the provided handler to the mux. The
 // returns CommandMux can be used to add sub-commands to this
 // command handler.
-func (mx *Mux) AddCommandHandler(h CommandHandler) *CommandMux {
+func (mx *Mux) AddCommandHandler(h CommandHandler) {
 	mx.Lock()
 	defer mx.Unlock()
 
-	return mx.cmds.AddCommandHandler(h)
-}
-
-// Describe implements the Describe method of Handler for
-// the Mux
-func (mx *Mux) Describe() (string, string) {
-	return mx.name, mx.desc
-}
-
-// CommandMux is a handler that support "nested" command line
-// commands.
-type CommandMux struct {
-	CommandHandler
-	subCmds map[string]*CommandMux
-}
-
-// NewCommandMux creates a new CommandMux. The provided base
-// command handler will be called first. This can process any
-// initial flags if desired. If the base command handler returns
-// ErrNextCommand, any command handlers that have been added to
-// this mux will then be called with the message Args having
-// been appropriately adjusted
-func NewCommandMux(base CommandHandler) *CommandMux {
-	return &CommandMux{base, map[string]*CommandMux{}}
-}
-
-// AddCommandHandler adds a sub-command to an existing CommandMux
-func (cx *CommandMux) AddCommandHandler(c CommandHandler) *CommandMux {
-	n, _ := c.Describe()
-
-	var subMux *CommandMux
-	if ccx, ok := c.(*CommandMux); ok {
-		cx.subCmds[n] = ccx
-	} else {
-		subMux = NewCommandMux(c)
-		cx.subCmds[n] = subMux
-	}
-
-	return subMux
-}
-
-// Command implements the Command handler for a CommandMux
-func (cx *CommandMux) Command(ctx context.Context, w ResponseWriter, m *Message) error {
-	var err error
-	if cx.CommandHandler != nil {
-		err = RunCommandHandler(ctx, cx.CommandHandler, w, m)
-	} else {
-		err = ErrNextCommand
-	}
-
-	if err != ErrNextCommand {
-		return err
-	}
-
-	if len(m.args) == 0 {
-		return fmt.Errorf("missing sub-command")
-	}
-
-	subs := cx.subCmds
-
-	if cmd, ok := subs[m.args[0]]; ok {
-		err = RunCommandHandler(ctx, cmd, w, m)
-	} else {
-		return ErrUnknownCommand
-	}
-
-	return err
-}
-
-// SubCommands returns any known subcommands of this command mux
-func (cx *CommandMux) SubCommands() map[string]*CommandMux {
-	return cx.subCmds
+	mx.cmds.AddCommandHandler(h)
 }
 
 // AddWebHookHandler adds the provided handler to the DefaultMux

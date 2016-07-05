@@ -33,40 +33,29 @@ func init() {
 }
 
 func New() hugot.CommandHandler {
-	mux := hugot.NewCommandMux(&testcli{})
-	mux.AddCommandHandler(&testcliHello{})
-	wmux := mux.AddCommandHandler(&testcliWorld{})
-	wmux.AddCommandHandler(&testcliWorld2{})
-	return mux
+	wcs := hugot.NewCommandSet()
+	wcs.AddCommandHandler(hugot.NewCommandHandler("world", "deeper down the rabbit hole", world2Command, nil))
+
+	cs := hugot.NewCommandSet()
+	cs.AddCommandHandler(hugot.NewCommandHandler("hello", "but hello to what", helloCommand, nil))
+	cs.AddCommandHandler(hugot.NewCommandHandler("world", "the whole thing", worldCommand, wcs))
+
+	return hugot.NewCommandHandler("testcli", "test command line thing", rootCommand, cs)
 }
 
-type testcli struct {
-}
-
-func (*testcli) Describe() (string, string) {
-	return "testcli", "does many many interesting things"
-}
-
-func (*testcli) Command(ctx context.Context, w hugot.ResponseWriter, m *hugot.Message) error {
-	t := m.String("arg", "", "A string argument")
-	i := m.Int("num", 0, "An int argument")
-	d := m.Duration("time", 1*time.Hour, "A duration argument")
+func rootCommand(ctx context.Context, w hugot.ResponseWriter, m *hugot.Message) error {
+	_ = m.String("arg", "", "A string argument")
+	_ = m.Int("num", 0, "An int argument")
+	_ = m.Duration("time", 1*time.Hour, "A duration argument")
+	_ = m.Bool("v", false, "verbose")
 	if err := m.Parse(); err != nil {
 		return err
 	}
 
-	fmt.Fprintf(w, "testclivals: (\"%v\",%v,%v)  args: %#v", *t, *i, *d, m.Args())
 	return hugot.ErrNextCommand
 }
 
-type testcliHello struct {
-}
-
-func (*testcliHello) Describe() (string, string) {
-	return "hello", "does many many interesting things"
-}
-
-func (*testcliHello) Command(ctx context.Context, w hugot.ResponseWriter, m *hugot.Message) error {
+func helloCommand(ctx context.Context, w hugot.ResponseWriter, m *hugot.Message) error {
 	if err := m.Parse(); err != nil {
 		return err
 	}
@@ -75,29 +64,14 @@ func (*testcliHello) Command(ctx context.Context, w hugot.ResponseWriter, m *hug
 	return nil
 }
 
-type testcliWorld struct {
-}
-
-func (*testcliWorld) Describe() (string, string) {
-	return "world", "does many many interesting things"
-}
-
-func (*testcliWorld) Command(ctx context.Context, w hugot.ResponseWriter, m *hugot.Message) error {
+func worldCommand(ctx context.Context, w hugot.ResponseWriter, m *hugot.Message) error {
 	if err := m.Parse(); err != nil {
 		return err
 	}
-
 	return hugot.ErrNextCommand
 }
 
-type testcliWorld2 struct {
-}
-
-func (*testcliWorld2) Describe() (string, string) {
-	return "world", "does many many interesting things"
-}
-
-func (*testcliWorld2) Command(ctx context.Context, w hugot.ResponseWriter, m *hugot.Message) error {
+func world2Command(ctx context.Context, w hugot.ResponseWriter, m *hugot.Message) error {
 	if err := m.Parse(); err != nil {
 		return err
 	}

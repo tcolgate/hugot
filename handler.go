@@ -26,6 +26,7 @@ import (
 	"net/http"
 	"regexp"
 	"runtime/debug"
+	"strings"
 
 	"golang.org/x/net/context"
 
@@ -39,10 +40,6 @@ var (
 	// skipped.
 	ErrSkipHears = errors.New("skip hear messages")
 
-	// ErrNextCommand is returned if the command wishes the message
-	// to be passed to one of the sub-ommands of a CommandMux.
-	ErrNextCommand = errors.New("pass this to the next command")
-
 	// ErrUnknownCommand is returned by a command mux if the command did
 	// not match any of it's registered handlers.
 	ErrUnknownCommand = errors.New("unknown command")
@@ -50,7 +47,11 @@ var (
 	// ErrBadCLI implies that we could not process this message as a
 	// command line. E.g. due to potentially mismatched quoting or bad
 	// escaping.
-	ErrBadCLI = errors.New("coul not process as command line")
+	ErrBadCLI = errors.New("could not process as command line")
+
+	// ErrNextCommand is returned if the command wishes the message
+	// to be passed to one of the sub-ommands of a CommandMux.
+	ErrNextCommand = errors.New("call the next command")
 )
 
 // ErrUsage indicates that Command handler was used incorrectly. The
@@ -260,22 +261,97 @@ type CommandHandler interface {
 	Command(ctx context.Context, w ResponseWriter, m *Message) error
 }
 
+// CommandWithSubsHandler should be implemented by any command that includes
+// sub commands.
+type CommandWithSubsHandler interface {
+	CommandHandler
+	SubCommands() *CommandSet // List the supported sub-commands
+}
+
+// CommandSet assists with supporting command handlers with sub-commands.
+type CommandSet map[string]CommandHandler
+
+// NewCommandSet creates an empty commands set.
+func NewCommandSet() *CommandSet {
+	cs := make(CommandSet)
+	return &cs
+}
+
+// AddCommandHandler adds a CommandHandler to a CommandSet
+func (cs *CommandSet) AddCommandHandler(c CommandHandler) {
+	n, _ := c.Describe()
+
+	(*cs)[n] = c
+}
+
+// List returns the names and usage of the subcommands of
+// a CommandSet.
+func (cs *CommandSet) List() ([]string, []string) {
+	cmds := []string{}
+	descs := []string{}
+
+	for _, ch := range *cs {
+		n, d := ch.Describe()
+		cmds = append(cmds, n)
+		descs = append(descs, d)
+	}
+
+	return cmds, descs
+}
+
+// NextCommand picks the next commands to run from this command set based on the content
+// of the message
+func (cs *CommandSet) NextCommand(ctx context.Context, w ResponseWriter, m *Message) error {
+	var err error
+
+	// This is repeated from RunCommandHandler, probably something wrong there
+	if m.args == nil {
+		m.args, err = shellwords.Parse(m.Text)
+		if err != nil {
+			return ErrBadCLI
+		}
+	}
+	if len(m.args) == 0 {
+		cmds, _ := cs.List()
+		return fmt.Errorf("required sub-command missing: %s", strings.Join(cmds, ", "))
+	}
+
+	if cmd, ok := (*cs)[m.args[0]]; ok {
+		err = RunCommandHandler(ctx, cmd, w, m)
+	} else {
+		return ErrUnknownCommand
+	}
+
+	return err
+}
+
 type baseCommandHandler struct {
 	Handler
-	bcf CommandFunc
+	bcf  CommandFunc
+	subs *CommandSet
 }
 
 // NewCommandHandler wraps the given function f as a CommandHandler with the
 // provided name and description.
-func NewCommandHandler(name, desc string, f CommandFunc) CommandHandler {
+func NewCommandHandler(name, desc string, f CommandFunc, cs *CommandSet) CommandHandler {
 	return &baseCommandHandler{
 		Handler: newBaseHandler(name, desc),
 		bcf:     f,
+		subs:    cs,
 	}
 }
 
 func (bch *baseCommandHandler) Command(ctx context.Context, w ResponseWriter, m *Message) error {
-	return bch.bcf(ctx, w, m)
+	err := bch.bcf(ctx, w, m)
+	if err != ErrNextCommand {
+		return err
+	}
+
+	return bch.subs.NextCommand(ctx, w, m)
+}
+
+func (bch *baseCommandHandler) SubCommands() *CommandSet {
+	return bch.subs
 }
 
 // WebHookHandler handlers are used to expose a registered handler via a web server.
@@ -333,7 +409,7 @@ func NewNetHTTPHandler(name, desc string, h http.Handler) WebHookHandler {
 
 func glogPanic() {
 	err := recover()
-	if err != nil && err != ErrNextCommand && err != flag.ErrHelp {
+	if err != nil && err != flag.ErrHelp {
 		glog.Error(err)
 		glog.Error(string(debug.Stack()))
 	}

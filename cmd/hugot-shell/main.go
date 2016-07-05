@@ -61,7 +61,7 @@ func main() {
 	}
 
 	hugot.AddBackgroundHandler(hugot.NewBackgroundHandler("test bg", "testing bg", bgHandler))
-	url := hugot.AddHTTPHandler(hugot.NewHTTPHandlerFunc("test", "test http", httpHandler))
+	url := hugot.AddWebHookHandler(hugot.NewNetHTTPHandlerFunc("test", "test http", httpHandler))
 	log.Println(url.String())
 
 	go bot.ListenAndServe(ctx, a, nil)

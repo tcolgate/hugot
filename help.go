@@ -2,14 +2,13 @@ package hugot
 
 import (
 	"bytes"
-	"golang.org/x/net/context"
 	"flag"
 	"fmt"
 	"io"
 	"strings"
 	"text/tabwriter"
 
-	"github.com/golang/glog"
+	"golang.org/x/net/context"
 )
 
 type muxHelp struct {
@@ -47,9 +46,9 @@ func (mx *muxHelp) fullHelp(ctx context.Context, w ResponseWriter, m *Message) {
 	tw := new(tabwriter.Writer)
 	tw.Init(out, 0, 8, 1, '\t', 0)
 
-	if len(mx.p.cmds.SubCommands()) > 0 {
+	if len(*mx.p.cmds) > 0 {
 		fmt.Fprintf(out, "Available commands are:\n")
-		for _, h := range mx.p.cmds.SubCommands() {
+		for _, h := range *mx.p.cmds {
 			n, d := h.Describe()
 			fmt.Fprintf(tw, "  %s\t - %s\n", n, d)
 		}
@@ -89,33 +88,32 @@ func (mx *muxHelp) fullHelp(ctx context.Context, w ResponseWriter, m *Message) {
 }
 
 func (mx *muxHelp) cmdHelp(ctx context.Context, w ResponseWriter, cmds []string) error {
-	var cx *CommandMux
+	var cs *CommandSet
 	var path []string
 
-	cx = mx.p.cmds
+	cs = mx.p.cmds
 
+	var cmd CommandHandler
 	for {
-		glog.Infof("%#v\n", cx)
 		if len(cmds) == 0 {
 			break
 		}
-		subs := cx.SubCommands()
-		if len(subs) == 0 {
-			glog.Info("ran out of commands")
-			return nil
-		}
 
-		if cmd, ok := subs[cmds[0]]; ok {
-			path = append(path, cmds[0])
-			cmds = cmds[1:]
-			cx = cmd
-		} else {
+		ok := false
+		if cmd, ok = (*cs)[cmds[0]]; !ok {
 			return ErrUnknownCommand
 		}
-		glog.Infof("%v %v %v\n", path, cmds, cx)
+
+		path = append(path, cmds[0])
+		cmds = cmds[1:]
+		if sch, ok := cmd.(CommandWithSubsHandler); ok {
+			cs = sch.SubCommands()
+		} else {
+			break
+		}
 	}
 
-	fmt.Fprint(w, cmdUsage(cx, strings.Join(path, " "), nil))
+	fmt.Fprint(w, cmdUsage(cmd, strings.Join(path, " "), nil))
 	return nil
 }
 
@@ -127,11 +125,11 @@ func cmdUsage(c CommandHandler, cmdStr string, err error) error {
 	m.FlagSet.SetOutput(m.flagOut)
 
 	c.Command(context.TODO(), NewNullResponseWriter(*m), m)
-	if subcx, ok := c.(*CommandMux); ok {
+	if subcx, ok := c.(CommandWithSubsHandler); ok {
 		subs := subcx.SubCommands()
-		if len(subs) > 0 {
+		if len(*subs) > 0 {
 			fmt.Fprintf(m.flagOut, "  Sub commands:\n")
-			for n, s := range subs {
+			for n, s := range *subs {
 				_, desc := s.Describe()
 				fmt.Fprintf(m.flagOut, "    %s - %s\n", n, desc)
 			}
