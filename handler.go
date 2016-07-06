@@ -331,9 +331,19 @@ type baseCommandHandler struct {
 	subs *CommandSet
 }
 
+func defaultCommandHandler(ctx context.Context, w ResponseWriter, m *Message) error {
+	if err := m.Parse(); err != nil {
+		return err
+	}
+	return ErrNextCommand
+}
+
 // NewCommandHandler wraps the given function f as a CommandHandler with the
 // provided name and description.
 func NewCommandHandler(name, desc string, f CommandFunc, cs *CommandSet) CommandHandler {
+	if f == nil {
+		f = defaultCommandHandler
+	}
 	return &baseCommandHandler{
 		Handler: newBaseHandler(name, desc),
 		bcf:     f,
