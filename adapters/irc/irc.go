@@ -68,6 +68,9 @@ func (irc *irc) Receive() <-chan *hugot.Message {
 func (irc *irc) eventToHugot(e *irce.Event) *hugot.Message {
 	txt := e.Message()
 	tobot := false
+	priv := false
+
+	channel := strings.Split(e.Raw, " ")[2] // either GetNick() or #mychannel
 
 	// Check if the message was sent @bot, if so, set it as to us
 	// and strip the leading politeness
@@ -81,10 +84,18 @@ func (irc *irc) eventToHugot(e *irce.Event) *hugot.Message {
 		txt = strings.Trim(dirMatch[1], " ")
 	}
 
+	if channel == irc.GetNick() {
+		channel = strings.Split(e.Raw[1:], "!")[0] // Starting from the [1]st char, split at "!", store as string
+		fmt.Println("Private Query detected")
+		tobot = true
+		priv = true
+	}
+
 	return &hugot.Message{
-		Channel: e.Arguments[0],
+		Channel: channel,
 		From:    e.Nick,
 		Text:    txt,
 		ToBot:   tobot,
+		Private: priv,
 	}
 }
