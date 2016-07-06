@@ -40,19 +40,7 @@ func New() hugot.CommandHandler {
 	cs.AddCommandHandler(hugot.NewCommandHandler("hello", "but hello to what", helloCommand, nil))
 	cs.AddCommandHandler(hugot.NewCommandHandler("world", "the whole thing", worldCommand, wcs))
 
-	return hugot.NewCommandHandler("testcli", "test command line thing", rootCommand, cs)
-}
-
-func rootCommand(ctx context.Context, w hugot.ResponseWriter, m *hugot.Message) error {
-	_ = m.String("arg", "", "A string argument")
-	_ = m.Int("num", 0, "An int argument")
-	_ = m.Duration("time", 1*time.Hour, "A duration argument")
-	_ = m.Bool("v", false, "verbose")
-	if err := m.Parse(); err != nil {
-		return err
-	}
-
-	return hugot.ErrNextCommand
+	return hugot.NewCommandHandler("testcli", "test command line thing", nil, cs)
 }
 
 func helloCommand(ctx context.Context, w hugot.ResponseWriter, m *hugot.Message) error {
@@ -72,6 +60,10 @@ func worldCommand(ctx context.Context, w hugot.ResponseWriter, m *hugot.Message)
 }
 
 func world2Command(ctx context.Context, w hugot.ResponseWriter, m *hugot.Message) error {
+	_ = m.String("arg", "", "A string argument")
+	_ = m.Int("num", 0, "An int argument")
+	_ = m.Duration("time", 1*time.Hour, "A duration argument")
+	_ = m.Bool("v", false, "verbose")
 	if err := m.Parse(); err != nil {
 		return err
 	}
