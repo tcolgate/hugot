@@ -117,7 +117,7 @@ func (s *slack) Send(ctx context.Context, m *hugot.Message) {
 		chanout := ""
 		c, err := s.GetChannel(m.Channel)
 		if err != nil {
-			glog.Errorf("unkresolvable channel, %#v", m.Channel)
+			glog.Errorf("unresolvable channel, %#v", m.Channel)
 			chanout = m.Channel
 		} else {
 			chanout = c.Name
