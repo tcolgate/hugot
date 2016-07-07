@@ -26,6 +26,7 @@ import (
 	"net/http"
 	"regexp"
 	"runtime/debug"
+	"sort"
 	"strings"
 
 	"golang.org/x/net/context"
@@ -295,19 +296,50 @@ func (cs *CommandSet) AddCommandHandler(c CommandHandler) {
 	(*cs)[n] = c
 }
 
+type byAlpha struct {
+	ns  []string
+	ds  []string
+	chs []CommandHandler
+}
+
+func (b *byAlpha) Len() int           { return len(b.ns) }
+func (b *byAlpha) Less(i, j int) bool { return b.ns[i] < b.ns[j] }
+func (b *byAlpha) Swap(i, j int) {
+	b.ns[i], b.ns[j] = b.ns[j], b.ns[i]
+	b.ds[i], b.ds[j] = b.ns[j], b.ds[i]
+	b.chs[i], b.chs[j] = b.chs[j], b.chs[i]
+}
+
 // List returns the names and usage of the subcommands of
 // a CommandSet.
-func (cs *CommandSet) List() ([]string, []string) {
+func (cs *CommandSet) List() ([]string, []string, []CommandHandler) {
 	cmds := []string{}
 	descs := []string{}
+	chs := []CommandHandler{}
+	hasHelp := false
 
 	for _, ch := range *cs {
 		n, d := ch.Describe()
+		if n == "help" {
+			hasHelp = true
+			continue
+		}
 		cmds = append(cmds, n)
 		descs = append(descs, d)
+		chs = append(chs, ch)
 	}
 
-	return cmds, descs
+	sorted := &byAlpha{cmds, descs, chs}
+	sort.Sort(sorted)
+	if hasHelp {
+		hh := (*cs)["help"]
+		_, hd := hh.Describe()
+		sorted.ns = append([]string{"help"}, sorted.ns...)
+		sorted.ds = append([]string{hd}, sorted.ds...)
+		sorted.chs = append([]CommandHandler{hh}, sorted.chs...)
+	}
+
+	return sorted.ns, sorted.ds, sorted.chs
 }
 
 // NextCommand picks the next commands to run from this command set based on the content
@@ -323,7 +355,7 @@ func (cs *CommandSet) NextCommand(ctx context.Context, w ResponseWriter, m *Mess
 		}
 	}
 	if len(m.args) == 0 {
-		cmds, _ := cs.List()
+		cmds, _, _ := cs.List()
 		return fmt.Errorf("required sub-command missing: %s", strings.Join(cmds, ", "))
 	}
 

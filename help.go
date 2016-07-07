@@ -48,7 +48,8 @@ func (mx *muxHelp) fullHelp(ctx context.Context, w ResponseWriter, m *Message) {
 
 	if len(*mx.p.cmds) > 0 {
 		fmt.Fprintf(out, "Available commands are:\n")
-		for _, h := range *mx.p.cmds {
+		_, _, hs := (*mx.p.cmds).List()
+		for _, h := range hs {
 			n, d := h.Describe()
 			fmt.Fprintf(tw, "  %s\t - %s\n", n, d)
 		}
