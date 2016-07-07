@@ -42,6 +42,8 @@ type Message struct {
 	Private bool
 	ToBot   bool
 
+	Extra interface{} // Arbitrary storage
+
 	*flag.FlagSet
 
 	args    []string

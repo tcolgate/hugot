@@ -362,12 +362,13 @@ func NewCommandHandler(name, desc string, f CommandFunc, cs *CommandSet) Command
 }
 
 func (bch *baseCommandHandler) Command(ctx context.Context, w ResponseWriter, m *Message) error {
+	var errnc errNextCommand
+	var ok bool
 	err := bch.bcf(ctx, w, m)
-	if errnc, ok := err.(errNextCommand); !ok {
+	if errnc, ok = err.(errNextCommand); !ok {
 		return err
-	} else {
-		return bch.subs.NextCommand(errnc.ctx, w, m)
 	}
+	return bch.subs.NextCommand(errnc.ctx, w, m)
 }
 
 func (bch *baseCommandHandler) SubCommands() *CommandSet {
