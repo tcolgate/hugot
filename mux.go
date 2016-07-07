@@ -233,9 +233,7 @@ func AddCommandHandler(h CommandHandler) {
 	DefaultMux.AddCommandHandler(h)
 }
 
-// AddCommandHandler Adds the provided handler to the mux. The
-// returns CommandMux can be used to add sub-commands to this
-// command handler.
+// AddCommandHandler Adds the provided handler to the mux.
 func (mx *Mux) AddCommandHandler(h CommandHandler) {
 	mx.Lock()
 	defer mx.Unlock()

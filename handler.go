@@ -71,7 +71,8 @@ func (e errNextCommand) Error() string {
 }
 
 // ErrNextCommand is returned if the command wishes the message
-// to be passed to one of the sub-ommands of a CommandMux.
+// to be passed to one of the sub-ommands of a CommandSet. The
+// ctx will be passed through to the next CommandHandler
 func ErrNextCommand(ctx context.Context) error {
 	return errNextCommand{ctx}
 }

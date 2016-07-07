@@ -52,12 +52,9 @@
 //
 // Mux
 //
-// The Mux, and CommandMux will multiplex message across a set of handlers. In
-// addition, a top level "help" Command handler is added to provide help on
-// usage of the various handlers added to it.
+// The Mux will multiplex message across a set of handlers. In addition, a top
+// level "help" Command handler is added to provide help on usage of the
+// various handlers added to the Mux.
 //
-// WARNING: the interface is new and is subject to change. In particular, the Comman/CommandMux
-// code is overly complex and the interface may be simplified to make this easier to use.
-// The HTTP support is currently unused and the interface may change depending on experience
-// of actually using it.
+// WARNING: The API is still subject to change.
 package hugot
