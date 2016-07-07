@@ -47,7 +47,7 @@
 // receive messages but can send them. They are intended to implement long
 // lived background tasks that react to external inputs.
 //
-// HTTP handlers can be used to implement web hooks by adding the bot to a
+// WebHook handlers can be used to implement web hooks by adding the bot to a
 // http.ServeMux. A URL is build from the name of the handler.
 //
 // Mux

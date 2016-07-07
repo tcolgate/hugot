@@ -56,7 +56,7 @@ func worldCommand(ctx context.Context, w hugot.ResponseWriter, m *hugot.Message)
 	if err := m.Parse(); err != nil {
 		return err
 	}
-	return hugot.ErrNextCommand
+	return hugot.ErrNextCommand(ctx)
 }
 
 func world2Command(ctx context.Context, w hugot.ResponseWriter, m *hugot.Message) error {

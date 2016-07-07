@@ -48,10 +48,6 @@ var (
 	// command line. E.g. due to potentially mismatched quoting or bad
 	// escaping.
 	ErrBadCLI = errors.New("could not process as command line")
-
-	// ErrNextCommand is returned if the command wishes the message
-	// to be passed to one of the sub-ommands of a CommandMux.
-	ErrNextCommand = errors.New("call the next command")
 )
 
 // ErrUsage indicates that Command handler was used incorrectly. The
@@ -64,6 +60,20 @@ type ErrUsage struct {
 // Error implements the Error interface for an ErrUsage.
 func (e ErrUsage) Error() string {
 	return e.string
+}
+
+type errNextCommand struct {
+	ctx context.Context
+}
+
+func (e errNextCommand) Error() string {
+	return "use next command"
+}
+
+// ErrNextCommand is returned if the command wishes the message
+// to be passed to one of the sub-ommands of a CommandMux.
+func ErrNextCommand(ctx context.Context) error {
+	return errNextCommand{ctx}
 }
 
 // Describer returns the name and description of a handler. This
@@ -254,7 +264,7 @@ type CommandFunc func(ctx context.Context, w ResponseWriter, m *Message) error
 // of the message parsed into invidual strings, accouting for quoting.
 // m.Args(0) will be the name of the command as the handler was called, as per
 // os.Args(). Command should add any requires falgs to m and then call m.Parse()
-// ErrNextCommand can be returned to inform the command mux to hand the resulting
+// ErrNextCommand(ctx) can be returned to inform the command mux to hand the resulting
 // Args to any known sub CommandHandler.
 type CommandHandler interface {
 	Handler
@@ -335,7 +345,7 @@ func defaultCommandHandler(ctx context.Context, w ResponseWriter, m *Message) er
 	if err := m.Parse(); err != nil {
 		return err
 	}
-	return ErrNextCommand
+	return ErrNextCommand(ctx)
 }
 
 // NewCommandHandler wraps the given function f as a CommandHandler with the
@@ -353,11 +363,11 @@ func NewCommandHandler(name, desc string, f CommandFunc, cs *CommandSet) Command
 
 func (bch *baseCommandHandler) Command(ctx context.Context, w ResponseWriter, m *Message) error {
 	err := bch.bcf(ctx, w, m)
-	if err != ErrNextCommand {
+	if errnc, ok := err.(errNextCommand); !ok {
 		return err
+	} else {
+		return bch.subs.NextCommand(errnc.ctx, w, m)
 	}
-
-	return bch.subs.NextCommand(ctx, w, m)
 }
 
 func (bch *baseCommandHandler) SubCommands() *CommandSet {

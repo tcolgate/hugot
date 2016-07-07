@@ -127,7 +127,7 @@ func cmdUsage(c CommandHandler, cmdStr string, err error) error {
 	c.Command(context.TODO(), NewNullResponseWriter(*m), m)
 	if subcx, ok := c.(CommandWithSubsHandler); ok {
 		subs := subcx.SubCommands()
-		if len(*subs) > 0 {
+		if subs != nil && len(*subs) > 0 {
 			fmt.Fprintf(m.flagOut, "  Sub commands:\n")
 			for n, s := range *subs {
 				_, desc := s.Describe()
