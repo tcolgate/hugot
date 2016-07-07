@@ -56,6 +56,18 @@ func (i *irc) gotEvent(e *irce.Event) {
 }
 
 func (irc *irc) Send(ctx context.Context, m *hugot.Message) {
+	if m.Private {
+		if m.Channel == "" {
+			if m.To != "" {
+				m.Channel = m.To
+			} else {
+				m.Channel = m.From
+			}
+		}
+	}
+	if glog.V(3) {
+		glog.Infof("Sending %#v", *m)
+	}
 	for _, l := range strings.Split(m.Text, "\n") {
 		irc.Privmsg(m.Channel, l)
 	}
@@ -86,7 +98,6 @@ func (irc *irc) eventToHugot(e *irce.Event) *hugot.Message {
 
 	if channel == irc.GetNick() {
 		channel = strings.Split(e.Raw[1:], "!")[0] // Starting from the [1]st char, split at "!", store as string
-		fmt.Println("Private Query detected")
 		tobot = true
 		priv = true
 	}
