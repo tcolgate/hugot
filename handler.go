@@ -327,13 +327,25 @@ func (cs *CommandSet) NextCommand(ctx context.Context, w ResponseWriter, m *Mess
 		return fmt.Errorf("required sub-command missing: %s", strings.Join(cmds, ", "))
 	}
 
-	if cmd, ok := (*cs)[m.args[0]]; ok {
-		err = RunCommandHandler(ctx, cmd, w, m)
-	} else {
+	matches := []CommandHandler{}
+	matchesns := []string{}
+	ematches := []CommandHandler{}
+	for name, cmd := range *cs {
+		if strings.HasPrefix(name, m.args[0]) {
+			matches = append(matches, cmd)
+			matchesns = append(matchesns, name)
+		}
+	}
+	if len(matches) == 0 && len(ematches) == 0 {
 		return ErrUnknownCommand
 	}
-
-	return err
+	if len(ematches) > 1 {
+		return fmt.Errorf("multiple exact matches for %s", m.args[0])
+	}
+	if len(matches) == 1 {
+		return RunCommandHandler(ctx, matches[0], w, m)
+	}
+	return fmt.Errorf("ambigious command, %s: %s", m.args[0], strings.Join(matchesns, ", "))
 }
 
 type baseCommandHandler struct {
