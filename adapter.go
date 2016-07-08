@@ -31,6 +31,20 @@ type Sender interface {
 	Send(ctx context.Context, m *Message)
 }
 
+// TextOnly is an interface to hint to handlers that the adapter
+// they are talking to is a text only handler, to help adjust
+// output.
+type TextOnly interface {
+	Sender
+	IsTextOnly()
+}
+
+// TextOnlySender returns true if the sender only support text.
+func IsTextOnly(s Sender) bool {
+	_, ok := s.(TextOnly)
+	return ok
+}
+
 // User represents a user within the chat sytems. The adapter is responsible
 // for translating the string User to and from it's external representation
 type User string

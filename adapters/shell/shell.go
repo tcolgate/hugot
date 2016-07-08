@@ -43,6 +43,9 @@ func New(nick string) (*shell, error) {
 	return &shell{nick, os.Getenv("USER"), rch, sch}, nil
 }
 
+func (s *shell) IsTextOnly() {
+}
+
 func (s *shell) Send(ctx context.Context, m *hugot.Message) {
 	s.sch <- m
 }

@@ -111,6 +111,9 @@ func New(token, nick string) (hugot.Adapter, error) {
 	return &s, nil
 }
 
+func (s *slack) IsTextOnly() {
+}
+
 func (s *slack) Send(ctx context.Context, m *hugot.Message) {
 	if (m.Text != "" || len(m.Attachments) > 0) && m.Channel != "" {
 		var err error
