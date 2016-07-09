@@ -16,61 +16,50 @@
 // along with hugot.  If not, see <http://www.gnu.org/licenses/>.
 
 // Package irc implements a simple adapter for IRC using
-// github.com/thoj/go-ircevent
+// github.com/fluffle/goirc/client
 package irc
 
 import (
 	"fmt"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	"golang.org/x/net/context"
-	"golang.org/x/time/rate"
 
+	"github.com/fluffle/goirc/client"
+	iglog "github.com/fluffle/goirc/logging/glog"
 	"github.com/golang/glog"
 	"github.com/tcolgate/hugot"
-	irce "github.com/thoj/go-ircevent"
 )
+
+type irc struct {
+	cfg      *client.Config
+	defChans []string
+
+	c chan *hugot.Message
+
+	start sync.Once
+	*client.Conn
+}
 
 // New creates a new adapter that communicates with an IRC server using
 // github.com/thoj/go-ircevent
-func New(i *irce.Connection) (hugot.Adapter, error) {
-	l := rate.NewLimiter(rate.Every(500*time.Millisecond), 1)
+func New(c *client.Config, chans ...string) hugot.Adapter {
 	a := &irc{
-		i,
+		c,
+		chans,
 		make(chan *hugot.Message),
-		regexp.MustCompile(fmt.Sprintf("^%s[:, ]?(.*)", i.GetNick())),
-		l}
-
-	i.AddCallback("PRIVMSG", a.gotMessage)
-	i.AddCallback("*", a.gotEvent)
-	return a, nil
-}
-
-type irc struct {
-	*irce.Connection
-	c   chan *hugot.Message
-	dir *regexp.Regexp
-	l   *rate.Limiter
-}
-
-func (i *irc) gotEvent(e *irce.Event) {
-	if glog.V(3) {
-		glog.Infof("Got %#v", *e)
+		sync.Once{},
+		nil,
 	}
+
+	return a
 }
 
-func (i *irc) gotMessage(e *irce.Event) {
-	go func() {
-		if glog.V(3) {
-			glog.Infof("Got %#v", *e)
-		}
-		i.c <- i.eventToHugot(e)
-	}()
-}
-
-func (irc *irc) Send(ctx context.Context, m *hugot.Message) {
+func (i *irc) Send(ctx context.Context, m *hugot.Message) {
+	i.Start()
 	if m.Private {
 		if m.Channel == "" {
 			if m.To != "" {
@@ -83,44 +72,86 @@ func (irc *irc) Send(ctx context.Context, m *hugot.Message) {
 	if glog.V(3) {
 		glog.Infof("Sending %#v", *m)
 	}
+
 	for _, l := range strings.Split(m.Text, "\n") {
-		irc.l.Wait(context.TODO())
-		irc.Privmsg(m.Channel, l)
+		i.Privmsg(m.Channel, l)
 	}
 }
 
-func (irc *irc) Receive() <-chan *hugot.Message {
-	return irc.c
+func (i *irc) Receive() <-chan *hugot.Message {
+	i.Start()
+	return i.c
 }
 
-func (irc *irc) eventToHugot(e *irce.Event) *hugot.Message {
-	txt := e.Message()
+func (i *irc) Start() {
+	i.start.Do(func() {
+		go i.run()
+	})
+}
+
+func (i *irc) run() {
+	iglog.Init()
+	for {
+		glog.Info("In here")
+		i.Conn = client.Client(i.cfg)
+
+		disconnected := make(chan struct{})
+		i.HandleFunc(client.DISCONNECTED, func(c *client.Conn, l *client.Line) {
+			close(disconnected)
+		})
+
+		// Connect to an IRC server.
+		if err := i.ConnectTo(i.cfg.Server); err != nil {
+			glog.Errorf("could not connect to server, %v", err)
+			<-time.After(5 * time.Second)
+			continue
+		}
+
+		i.HandleFunc(client.PRIVMSG, func(conn *client.Conn, l *client.Line) {
+			i.c <- i.eventToHugot(l)
+		})
+
+		i.HandleFunc(client.CONNECTED, func(conn *client.Conn, l *client.Line) {
+			for _, c := range i.defChans {
+				i.Join(c)
+			}
+		})
+
+		// Wait for disconnection.
+		<-disconnected
+	}
+
+}
+
+func (i *irc) eventToHugot(l *client.Line) *hugot.Message {
+	txt := l.Text()
+	nick := i.Me().Nick
 	tobot := false
 	priv := false
+	channel := l.Target()
 
-	channel := strings.Split(e.Raw, " ")[2] // either GetNick() or #mychannel
+	if l.Public() {
+		// Check if the message was sent @bot, if so, set it as to us
+		// and strip the leading politeness
+		dir := regexp.MustCompile(fmt.Sprintf("^%s[:, ]+(.*)", nick))
+		dirMatch := dir.FindStringSubmatch(txt)
+		if glog.V(3) {
+			glog.Infof("Match %#v", dirMatch)
+		}
 
-	// Check if the message was sent @bot, if so, set it as to us
-	// and strip the leading politeness
-	dirMatch := irc.dir.FindStringSubmatch(txt)
-	if glog.V(3) {
-		glog.Infof("Match %#v", dirMatch)
-	}
-
-	if len(dirMatch) > 1 {
-		tobot = true
-		txt = strings.Trim(dirMatch[1], " ")
-	}
-
-	if channel == irc.GetNick() {
-		channel = strings.Split(e.Raw[1:], "!")[0] // Starting from the [1]st char, split at "!", store as string
+		if len(dirMatch) > 1 {
+			tobot = true
+			txt = strings.Trim(dirMatch[1], " ")
+		}
+	} else {
 		tobot = true
 		priv = true
 	}
 
 	return &hugot.Message{
 		Channel: channel,
-		From:    e.Nick,
+		From:    l.Nick,
+		To:      nick,
 		Text:    txt,
 		ToBot:   tobot,
 		Private: priv,

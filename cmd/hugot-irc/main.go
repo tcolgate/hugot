@@ -18,55 +18,42 @@
 package main
 
 import (
+	"crypto/tls"
 	"flag"
+	"strings"
 
 	"golang.org/x/net/context"
 
 	// Add some handlers
-	"github.com/golang/glog"
+	"github.com/fluffle/goirc/client"
 	"github.com/tcolgate/hugot"
 	"github.com/tcolgate/hugot/adapters/irc"
 	"github.com/tcolgate/hugot/handlers/ping"
 	"github.com/tcolgate/hugot/handlers/tableflip"
-	irce "github.com/thoj/go-ircevent"
 )
 
 var (
-	nick    = flag.String("nick", "hugot-test", "Bot nick")
-	user    = flag.String("irc.user", "hugot-test", "IRC username")
+	nick    = flag.String("nick", "hugot-prom", "Bot nick")
+	user    = flag.String("irc.user", "hugot-prom", "IRC username")
 	pass    = flag.String("irc.pass", "", "IRC password")
 	server  = flag.String("irc.server", "chat.freenode.net:6697", "Server to connect to")
-	ircchan = flag.String("irc.channel", "#hugottest", "Channel to listen in")
+	ircchan = flag.String("irc.channel", "#hugot", "Channel to listen in")
 	useSSL  = flag.Bool("irc.usessl", true, "Use SSL to connect")
 )
 
 func main() {
 	flag.Parse()
 
-	c := irce.IRC(*nick, *user)
-	if c == nil {
-		glog.Fatal("could not create IRC event instance")
-	}
-	c.UseTLS = *useSSL
-	c.Password = *pass
+	c := client.NewConfig(*nick)
+	c.Server = *server
+	c.SSL = *useSSL
+	c.Pass = *pass
+	c.SSLConfig = &tls.Config{ServerName: strings.Split(*server, ":")[0]}
 
-	err := c.Connect(*server)
-	if err != nil {
-		glog.Fatalf("could not connecto server", err)
-	}
-	c.Join(*ircchan)
-	defer c.Quit()
+	a := irc.New(c, *ircchan)
 
-	a, err := irc.New(c)
-	if err != nil {
-		glog.Fatal("could not create irc adapter")
-	}
-
-	hugot.Add(tableflip.New())
 	hugot.Add(ping.New())
+	hugot.Add(tableflip.New())
 
-	go hugot.ListenAndServe(context.Background(), a, nil)
-
-	c.Loop()
-
+	hugot.ListenAndServe(context.Background(), a, nil)
 }
