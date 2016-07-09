@@ -28,7 +28,7 @@ import (
 )
 
 func init() {
-	DefaultMux = NewMux("defaultMux", "")
+	DefaultMux = NewMux("hugot", "")
 	DefaultMux.httpm = http.DefaultServeMux
 }
 
