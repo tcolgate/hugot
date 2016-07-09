@@ -23,8 +23,10 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"time"
 
 	"golang.org/x/net/context"
+	"golang.org/x/time/rate"
 
 	"github.com/golang/glog"
 	"github.com/tcolgate/hugot"
@@ -34,9 +36,15 @@ import (
 // New creates a new adapter that communicates with an IRC server using
 // github.com/thoj/go-ircevent
 func New(i *irce.Connection) (hugot.Adapter, error) {
-	a := &irc{i, make(chan *hugot.Message), regexp.MustCompile(fmt.Sprintf("^%s[:, ]?(.*)", i.GetNick()))}
+	l := rate.NewLimiter(rate.Every(500*time.Millisecond), 1)
+	a := &irc{
+		i,
+		make(chan *hugot.Message),
+		regexp.MustCompile(fmt.Sprintf("^%s[:, ]?(.*)", i.GetNick())),
+		l}
 
-	i.AddCallback("PRIVMSG", a.gotEvent)
+	i.AddCallback("PRIVMSG", a.gotMessage)
+	i.AddCallback("*", a.gotEvent)
 	return a, nil
 }
 
@@ -44,9 +52,16 @@ type irc struct {
 	*irce.Connection
 	c   chan *hugot.Message
 	dir *regexp.Regexp
+	l   *rate.Limiter
 }
 
 func (i *irc) gotEvent(e *irce.Event) {
+	if glog.V(3) {
+		glog.Infof("Got %#v", *e)
+	}
+}
+
+func (i *irc) gotMessage(e *irce.Event) {
 	go func() {
 		if glog.V(3) {
 			glog.Infof("Got %#v", *e)
@@ -69,6 +84,7 @@ func (irc *irc) Send(ctx context.Context, m *hugot.Message) {
 		glog.Infof("Sending %#v", *m)
 	}
 	for _, l := range strings.Split(m.Text, "\n") {
+		irc.l.Wait(context.TODO())
 		irc.Privmsg(m.Channel, l)
 	}
 }
