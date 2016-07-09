@@ -28,10 +28,6 @@ import (
 	"github.com/tcolgate/hugot"
 )
 
-func init() {
-	hugot.AddCommandHandler(New())
-}
-
 func New() hugot.CommandHandler {
 	wcs := hugot.NewCommandSet()
 	wcs.AddCommandHandler(hugot.NewCommandHandler("world", "deeper down the rabbit hole", world2Command, nil))

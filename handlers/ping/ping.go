@@ -27,10 +27,6 @@ import (
 	"github.com/tcolgate/hugot"
 )
 
-func init() {
-	hugot.AddCommandHandler(New())
-}
-
 type ping struct {
 }
 

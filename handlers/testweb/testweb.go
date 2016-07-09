@@ -15,9 +15,8 @@
 // You should have received a copy of the GNU General Public License
 // along with hugot.  If not, see <http://www.gnu.org/licenses/>.
 
-// Package testcli provides an example Command handler with nested
-// command handling.
-package testcli
+// Package testweb provides an example webhook handler
+package testweb
 
 import (
 	"fmt"
@@ -25,18 +24,16 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/golang/glog"
 	"github.com/tcolgate/hugot"
 )
 
-func init() {
-	url := hugot.AddWebHookHandler(hugot.NewWebHookHandler("testweb", "does things", handleWeb))
-	glog.Infof("url: %#v", *url)
+func New() hugot.WebHookHandler {
+	return hugot.NewWebHookHandler("testweb", "does things", handleWeb)
 }
 
 func handleWeb(ctx context.Context, hw hugot.ResponseWriter, w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Hello world")
 
 	hw.SetChannel("bottest")
-	fmt.Fprintf(hw, "Hello world, %#v", *r)
+	fmt.Fprint(hw, "Hello from world wide web")
 }

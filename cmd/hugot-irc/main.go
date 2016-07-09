@@ -26,14 +26,15 @@ import (
 	"github.com/golang/glog"
 	"github.com/tcolgate/hugot"
 	"github.com/tcolgate/hugot/adapters/irc"
-	_ "github.com/tcolgate/hugot/handlers/ping"
+	"github.com/tcolgate/hugot/handlers/ping"
+	"github.com/tcolgate/hugot/handlers/tableflip"
 	irce "github.com/thoj/go-ircevent"
 )
 
 var (
-	nick    = flag.String("nick", "hugottest", "Bot nick")
-	user    = flag.String("irc.user", "xxxx", "IRC username")
-	pass    = flag.String("irc.pass", "xxxx", "IRC password")
+	nick    = flag.String("nick", "hugot-test", "Bot nick")
+	user    = flag.String("irc.user", "hugot-test", "IRC username")
+	pass    = flag.String("irc.pass", "", "IRC password")
 	server  = flag.String("irc.server", "chat.freenode.net:6697", "Server to connect to")
 	ircchan = flag.String("irc.channel", "#hugottest", "Channel to listen in")
 	useSSL  = flag.Bool("irc.usessl", true, "Use SSL to connect")
@@ -43,20 +44,28 @@ func main() {
 	flag.Parse()
 
 	c := irce.IRC(*nick, *user)
+	if c == nil {
+		glog.Fatal("could not create IRC event instance")
+	}
 	c.UseTLS = *useSSL
 	c.Password = *pass
 
 	err := c.Connect(*server)
 	if err != nil {
-		glog.Fatal(err)
+		glog.Fatalf("could not connecto server", err)
 	}
 	c.Join(*ircchan)
 	defer c.Quit()
 
-	ctx := context.Background()
 	a, err := irc.New(c)
+	if err != nil {
+		glog.Fatal("could not create irc adapter")
+	}
 
-	go hugot.ListenAndServe(ctx, a, nil)
+	hugot.Add(tableflip.New())
+	hugot.Add(ping.New())
+
+	go hugot.ListenAndServe(context.Background(), a, nil)
 
 	c.Loop()
 

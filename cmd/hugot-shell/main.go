@@ -33,9 +33,9 @@ import (
 	"github.com/tcolgate/hugot"
 
 	// Add some handlers
-	_ "github.com/tcolgate/hugot/handlers/ping"
-	_ "github.com/tcolgate/hugot/handlers/tableflip"
-	_ "github.com/tcolgate/hugot/handlers/testcli"
+	"github.com/tcolgate/hugot/handlers/ping"
+	"github.com/tcolgate/hugot/handlers/tableflip"
+	"github.com/tcolgate/hugot/handlers/testcli"
 )
 
 var nick = flag.String("nick", "minion", "Bot nick")
@@ -59,6 +59,10 @@ func main() {
 	if err != nil {
 		glog.Fatal(err)
 	}
+
+	hugot.Add(ping.New())
+	hugot.Add(testcli.New())
+	hugot.Add(tableflip.New())
 
 	hugot.AddBackgroundHandler(hugot.NewBackgroundHandler("test bg", "testing bg", bgHandler))
 	url := hugot.AddWebHookHandler(hugot.NewNetHTTPHandlerFunc("test", "test http", httpHandler))

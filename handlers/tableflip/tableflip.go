@@ -32,10 +32,6 @@ import (
 // y=ｰ( ﾟдﾟ)･∵.
 // From Will P
 
-func init() {
-	hugot.AddHearsHandler(New())
-}
-
 type tableflip struct {
 }
 
