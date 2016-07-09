@@ -24,6 +24,8 @@ import (
 	"regexp"
 	"sync"
 
+	"github.com/golang/glog"
+
 	"golang.org/x/net/context"
 )
 
@@ -38,10 +40,13 @@ type Mux struct {
 	name string
 	desc string
 
+	burl *url.URL
+
 	*sync.RWMutex
 	hndlrs   []Handler                         // All the handlers
 	rhndlrs  []RawHandler                      // Raw handlers
 	bghndlrs []BackgroundHandler               // Long running background handlers
+	whhndlrs []WebHookHandler                  // WebHooks
 	hears    map[*regexp.Regexp][]HearsHandler // Hearing handlers
 	cmds     *CommandSet                       // Command handlers
 	httpm    *http.ServeMux                    // http Mux
@@ -64,6 +69,7 @@ func NewMux(name, desc string) *Mux {
 		cmds:     NewCommandSet(),
 		httpm:    http.NewServeMux(),
 		whsndr:   nil,
+		burl:     &url.URL{Path: "/" + name},
 	}
 	mx.AddCommandHandler(&muxHelp{mx})
 	return mx
@@ -73,6 +79,45 @@ func NewMux(name, desc string) *Mux {
 // the Mux
 func (mx *Mux) Describe() (string, string) {
 	return mx.name, mx.desc
+}
+
+// URL returns the base URL for the default Mux
+func URL() *url.URL {
+	return DefaultMux.URL()
+}
+
+// URL returns the base URL for this Mux
+func (mx *Mux) URL() *url.URL {
+	mx.RLock()
+	defer mx.RUnlock()
+	return mx.url()
+}
+
+func (mx *Mux) url() *url.URL {
+	return mx.burl
+}
+
+// SetURL sets the base URL for web hooks.
+func SetURL(b *url.URL) {
+	DefaultMux.SetURL(b)
+}
+
+// SetURL sets the base URL for this mux's web hooks.
+func (mx *Mux) SetURL(b *url.URL) {
+	mx.Lock()
+	defer mx.Unlock()
+
+	mx.burl = b
+	for _, h := range mx.whhndlrs {
+		n, _ := h.Describe()
+		p := fmt.Sprintf("/%s/%s", mx.name, n)
+		nu := *b
+		nu.Path = p
+		if b.Path != "" {
+			nu.Path = b.Path + "/" + nu.Path
+		}
+		h.SetURL(&nu)
+	}
 }
 
 // StartBackground starts any registered background handlers.
@@ -242,8 +287,8 @@ func (mx *Mux) AddCommandHandler(h CommandHandler) {
 }
 
 // AddWebHookHandler adds the provided handler to the DefaultMux
-func AddWebHookHandler(h WebHookHandler) *url.URL {
-	return DefaultMux.AddWebHookHandler(h)
+func AddWebHookHandler(h WebHookHandler) {
+	DefaultMux.AddWebHookHandler(h)
 }
 
 type webHookBridge struct {
@@ -270,14 +315,21 @@ func (whb *webHookBridge) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // of the Mux, and the name of the handler are used to
 // construct a unique URL that can be used to send web
 // requests to this handler
-func (mx *Mux) AddWebHookHandler(h WebHookHandler) *url.URL {
+func (mx *Mux) AddWebHookHandler(h WebHookHandler) {
 	mx.Lock()
 	defer mx.Unlock()
 
+	mx.whhndlrs = append(mx.whhndlrs, h)
 	n, _ := h.Describe()
 	p := fmt.Sprintf("/%s/%s", mx.name, n)
+	if glog.V(2) {
+		glog.Infof("register webhook at %s ", p)
+	}
 	mx.httpm.Handle(p, &webHookBridge{mx, nil, h})
-	return &url.URL{Path: p}
+
+	nu := *mx.url()
+	nu.Path = nu.Path + "/" + p
+	h.SetURL(&nu)
 }
 
 // ServeHTTP iplements http.ServeHTTP for a Mux to allow it to

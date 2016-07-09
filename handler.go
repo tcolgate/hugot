@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"regexp"
 	"runtime/debug"
 	"sort"
@@ -421,8 +422,13 @@ func (bch *baseCommandHandler) SubCommands() *CommandSet {
 }
 
 // WebHookHandler handlers are used to expose a registered handler via a web server.
+// The SetURL method is called to inform the handler what it's external URL will be.
+// This will normally be done by the Mux. Other handlers can use URL to generate
+// links suitable for external use
 type WebHookHandler interface {
 	Handler
+	URL() *url.URL   // Is called to retrieve the location of the Handler
+	SetURL(*url.URL) // Is called after the WebHook is added, to inform it where it lives
 	ReceiveHTTP(ctx context.Context, hw ResponseWriter, w http.ResponseWriter, r *http.Request)
 }
 
@@ -433,7 +439,8 @@ type baseWebHookHandler struct {
 	ctx context.Context
 	a   Adapter
 	Handler
-	hf WebHookHandlerFunc
+	hf  WebHookHandlerFunc
+	url *url.URL
 }
 
 // NewWebHookPHandler creates a new WebHookHandler provided name and description.
@@ -445,8 +452,17 @@ func (bwhh *baseWebHookHandler) ReceiveHTTP(ctx context.Context, hw ResponseWrit
 func NewWebHookHandler(name, desc string, hf WebHookHandlerFunc) WebHookHandler {
 	return &baseWebHookHandler{
 		Handler: newBaseHandler(name, desc),
+		url:     &url.URL{},
 		hf:      hf,
 	}
+}
+
+func (bwhh *baseWebHookHandler) SetURL(u *url.URL) {
+	bwhh.url = u
+}
+
+func (bwhh *baseWebHookHandler) URL() *url.URL {
+	return bwhh.url
 }
 
 // NewNetHTTPHandlerFunc creates a new WebHookHandler with the http.HandlerFunc h, and the

@@ -20,6 +20,7 @@ package main
 import (
 	"flag"
 	"net/http"
+	"net/url"
 	"os"
 
 	"golang.org/x/net/context"
@@ -51,8 +52,14 @@ func main() {
 	hugot.Add(ping.New())
 	hugot.Add(tableflip.New())
 	hugot.Add(testcli.New())
-	whurl := hugot.AddWebHookHandler(testweb.New())
-	glog.Infof("web hook registered at %s", whurl)
+
+	wh := testweb.New()
+	hugot.AddWebHookHandler(wh)
+
+	u, _ := url.Parse("http://localhost:8080")
+	hugot.SetURL(u)
+
+	glog.Infof("webhook at %s", wh.URL())
 
 	go http.ListenAndServe(":8080", nil)
 	bot.ListenAndServe(ctx, a, nil)
