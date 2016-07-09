@@ -19,6 +19,7 @@ package hugot_test
 
 import (
 	"flag"
+	"fmt"
 	"os"
 
 	"github.com/golang/glog"
@@ -29,34 +30,34 @@ import (
 	// Pick an adapter to talk to an outside network
 	"github.com/tcolgate/hugot/adapters/slack"
 
-	// Add some handlers. These handlers automatically
-	// register on the default Mux, so we just import
-	// to use them.
-	_ "github.com/tcolgate/hugot/handlers/ping"
-	_ "github.com/tcolgate/hugot/handlers/tableflip"
-	_ "github.com/tcolgate/hugot/handlers/testcli"
-)
-
-func init() {
-	flag.StringVar(&slackToken, "token", os.Getenv("SLACK_TOKEN"), "Slack API Token")
-	flag.StringVar(&nick, "nick", "minion", "Bot nick")
-}
-
-var (
-	slackToken string
-	nick       string
+	// Pick some handlers.
+	"github.com/tcolgate/hugot/handlers/ping"
+	"github.com/tcolgate/hugot/handlers/tableflip"
+	"github.com/tcolgate/hugot/handlers/testcli"
+	"github.com/tcolgate/hugot/handlers/testweb"
 )
 
 func Example() {
+	slackToken := flag.String("token", os.Getenv("SLACK_TOKEN"), "Slack API Token")
+	nick := flag.String("nick", "minion", "Bot nick")
 	flag.Parse()
 
 	// The context can be used to shutdown the bot and any
 	// Background handlers gracefully.
 	ctx := context.Background()
-	a, err := slack.New(slackToken, nick)
+	a, err := slack.New(*slackToken, *nick)
 	if err != nil {
 		glog.Fatal(err)
 	}
+
+	hugot.Add(ping.New())
+	hugot.Add(tableflip.New())
+	hugot.Add(testcli.New())
+
+	// For web handlers, we probably want to know the URL
+	// that it is registered at.
+	url := hugot.AddWebHookHandler(testweb.New())
+	fmt.Printf("Web hook registered at %s\n", url)
 
 	// This will start read , process and forward
 	// messages from the adapter into the default

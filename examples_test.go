@@ -24,15 +24,6 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/tcolgate/hugot"
-
-	// Pick an adapter to talk to an outside network
-
-	// Add some handlers. These handlers automatically
-	// register on the default Mux, so we just import
-	// to use them.
-	_ "github.com/tcolgate/hugot/handlers/ping"
-	_ "github.com/tcolgate/hugot/handlers/tableflip"
-	_ "github.com/tcolgate/hugot/handlers/testcli"
 )
 
 func ExampleMessage_Parse(ctx context.Context, w hugot.ResponseWriter, m *hugot.Message) error {
