@@ -30,5 +30,12 @@ func New() hugot.WebHookHandler {
 }
 
 func handleWeb(w http.ResponseWriter, r *http.Request) {
+	rw, ok := hugot.ResponseWriterFromContext(r.Context())
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+
 	fmt.Fprintf(w, "Hello world")
+	fmt.Fprintf(rw, "Hello from world wide web")
 }

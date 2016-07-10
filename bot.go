@@ -19,6 +19,10 @@ package hugot
 
 import "context"
 
+// key is a our context key type
+
+type key int
+
 // ListenAndServe runs the handler h, passing all messages to/from
 // the provided adapter. The context may be used to gracefully shut
 // down the server.
@@ -27,5 +31,6 @@ func ListenAndServe(ctx context.Context, a Adapter, h Handler) {
 		h = DefaultMux
 	}
 
+	ctx = NewAdapterContext(ctx, a)
 	RunHandlers(ctx, h, a)
 }

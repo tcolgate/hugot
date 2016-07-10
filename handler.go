@@ -110,6 +110,14 @@ func newResponseWriter(s Sender, m Message) ResponseWriter {
 	return &responseWriter{s, m}
 }
 
+func ResponseWriterFromContext(ctx context.Context) (ResponseWriter, bool) {
+	s, ok := SenderFromContext(ctx)
+	if !ok {
+		return nil, false
+	}
+	return newResponseWriter(s, Message{}), true
+}
+
 // Write implements the io.Writer interface. All writes create a single
 // new message that is then sent to the ResoneWriter's current adapter
 func (w *responseWriter) Write(bs []byte) (int, error) {
@@ -427,8 +435,9 @@ func (bch *baseCommandHandler) SubCommands() *CommandSet {
 // links suitable for external use
 type WebHookHandler interface {
 	Handler
-	URL() *url.URL   // Is called to retrieve the location of the Handler
-	SetURL(*url.URL) // Is called after the WebHook is added, to inform it where it lives
+	URL() *url.URL      // Is called to retrieve the location of the Handler
+	SetURL(*url.URL)    // Is called after the WebHook is added, to inform it where it lives
+	SetAdapter(Adapter) // Is called to set the default adapter for this handler to use
 	http.Handler
 }
 
@@ -445,6 +454,10 @@ type baseWebHookHandler struct {
 
 // ServeHTTP  implement the http.Handler interface for a baseWebHandler
 func (bwhh *baseWebHookHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	ctx = NewAdapterContext(ctx, bwhh.a)
+	r = r.WithContext(ctx)
+
 	bwhh.hf(w, r)
 }
 
@@ -468,6 +481,13 @@ func (bwhh *baseWebHookHandler) URL() *url.URL {
 	return bwhh.url
 }
 
+func (bwhh *baseWebHookHandler) SetAdapter(a Adapter) {
+	if glog.V(3) {
+		glog.Infof("WebHander adapter set to %#v", a)
+	}
+	bwhh.a = a
+}
+
 func glogPanic() {
 	err := recover()
 	if err != nil && err != flag.ErrHelp {
@@ -483,6 +503,10 @@ func glogPanic() {
 func RunHandlers(ctx context.Context, h Handler, a Adapter) {
 	if bh, ok := h.(BackgroundHandler); ok {
 		RunBackgroundHandler(ctx, bh, newResponseWriter(a, Message{}))
+	}
+
+	if wh, ok := h.(WebHookHandler); ok {
+		wh.SetAdapter(a)
 	}
 
 	for {

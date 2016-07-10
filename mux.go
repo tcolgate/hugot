@@ -51,7 +51,6 @@ type Mux struct {
 	hears    map[*regexp.Regexp][]HearsHandler // Hearing handlers
 	cmds     *CommandSet                       // Command handlers
 	httpm    *http.ServeMux                    // http Mux
-	whsndr   Sender                            // Sender to be used by webhooks
 }
 
 // DefaultMux is a default Mux instance, http Handlers will be added to
@@ -70,7 +69,6 @@ func NewMux(name, desc string) *Mux {
 		hears:    map[*regexp.Regexp][]HearsHandler{},
 		cmds:     NewCommandSet(),
 		httpm:    http.NewServeMux(),
-		whsndr:   nil,
 		burl:     &url.URL{Path: "/" + name},
 	}
 	mx.HandleCommand(&muxHelp{mx})
@@ -123,10 +121,19 @@ func (mx *Mux) SetURL(b *url.URL) {
 func (mx *Mux) StartBackground(ctx context.Context, w ResponseWriter) {
 	mx.Lock()
 	defer mx.Unlock()
-	mx.whsndr = w
 
 	for _, h := range mx.bghndlrs {
 		go RunBackgroundHandler(ctx, h, w)
+	}
+}
+
+// SetAdapter sets the adapter on all the webhook of this mux.
+func (mx *Mux) SetAdapter(a Adapter) {
+	mx.Lock()
+	defer mx.Unlock()
+
+	for _, wh := range mx.whhndlrs {
+		wh.SetAdapter(a)
 	}
 }
 
@@ -327,7 +334,6 @@ func (mx *Mux) HandleHTTP(h WebHookHandler) {
 // ServeHTTP iplements http.ServeHTTP for a Mux to allow it to
 // act as a web server.
 func (mx *Mux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "in here at least")
 	if glog.V(2) {
 		glog.Infof("Mux ServeHTTP %s\n", *r)
 	}
