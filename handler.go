@@ -110,6 +110,9 @@ func newResponseWriter(s Sender, m Message) ResponseWriter {
 	return &responseWriter{s, m}
 }
 
+// ResponseWriterFromContext constructs a ResponseWriter from the adapter
+// stored in the context. A destination Channel/User must be set to send
+// messages..
 func ResponseWriterFromContext(ctx context.Context) (ResponseWriter, bool) {
 	s, ok := SenderFromContext(ctx)
 	if !ok {
@@ -432,7 +435,10 @@ func (bch *baseCommandHandler) SubCommands() *CommandSet {
 // WebHookHandler handlers are used to expose a registered handler via a web server.
 // The SetURL method is called to inform the handler what it's external URL will be.
 // This will normally be done by the Mux. Other handlers can use URL to generate
-// links suitable for external use
+// links suitable for external use.
+// You can use the http.Handler Request.Context() to get a ResponseWriter to write
+// into the bots adapters. You need to SetChannel the resulting ResponseWriter to
+// send messages.
 type WebHookHandler interface {
 	Handler
 	URL() *url.URL      // Is called to retrieve the location of the Handler
