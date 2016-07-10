@@ -20,6 +20,8 @@
 // net/http, and uses an internal message format that is compatible
 // with Slack messages.
 //
+// Note: This package requires go1.7
+//
 // Adapters
 //
 // Adapters are used to integrate with external chat systems. Currently
