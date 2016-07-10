@@ -52,8 +52,8 @@ func main() {
 
 	a := irc.New(c, *ircchan)
 
-	hugot.Add(ping.New())
-	hugot.Add(tableflip.New())
+	hugot.Handle(ping.New())
+	hugot.Handle(tableflip.New())
 
 	hugot.ListenAndServe(context.Background(), a, nil)
 }

@@ -171,7 +171,7 @@ func newBaseHandler(name, desc string) Handler {
 // any filtering.
 type RawHandler interface {
 	Handler
-	Handle(ctx context.Context, w ResponseWriter, m *Message) error
+	ProcessMessage(ctx context.Context, w ResponseWriter, m *Message) error
 }
 
 type baseRawHandler struct {
@@ -192,7 +192,7 @@ func NewRawHandler(name, desc string, f RawFunc) RawHandler {
 	}
 }
 
-func (brh *baseRawHandler) Handle(ctx context.Context, w ResponseWriter, m *Message) error {
+func (brh *baseRawHandler) ProcessMessage(ctx context.Context, w ResponseWriter, m *Message) error {
 	return brh.rhf(ctx, w, m)
 }
 
@@ -542,7 +542,7 @@ func RunBackgroundHandler(ctx context.Context, h BackgroundHandler, w ResponseWr
 // future.
 func RunRawHandler(ctx context.Context, h RawHandler, w ResponseWriter, m *Message) bool {
 	defer glogPanic()
-	h.Handle(ctx, w, m)
+	h.ProcessMessage(ctx, w, m)
 
 	return false
 }

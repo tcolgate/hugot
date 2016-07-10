@@ -71,7 +71,7 @@ func NewMux(name, desc string) *Mux {
 		whsndr:   nil,
 		burl:     &url.URL{Path: "/" + name},
 	}
-	mx.AddCommandHandler(&muxHelp{mx})
+	mx.HandleCommand(&muxHelp{mx})
 	return mx
 }
 
@@ -131,14 +131,14 @@ func (mx *Mux) StartBackground(ctx context.Context, w ResponseWriter) {
 	}
 }
 
-// Handle implements the Handler interface. Message will first be passed to
+// ProcessMessage implements the Handler interface. Message will first be passed to
 // any registered RawHandlers. If the message has been deemed, by the Adapter
 // to have been sent directly to the bot, any comand handlers will be processed.
 // Then, if appropriate, the message will be matched against any Hears patterns
 // and all matching Heard functions will then be called.
 // Any unrecognized errors from the Command handlers will be passed back to the
 // user that sent us the message.
-func (mx *Mux) Handle(ctx context.Context, w ResponseWriter, m *Message) error {
+func (mx *Mux) ProcessMessage(ctx context.Context, w ResponseWriter, m *Message) error {
 	mx.RLock()
 	defer mx.RUnlock()
 	var err error
@@ -146,7 +146,7 @@ func (mx *Mux) Handle(ctx context.Context, w ResponseWriter, m *Message) error {
 	// We run all raw message handlers
 	for _, rh := range mx.rhndlrs {
 		mc := *m
-		go rh.Handle(ctx, w, &mc)
+		go rh.ProcessMessage(ctx, w, &mc)
 	}
 
 	if m.ToBot {
@@ -173,38 +173,38 @@ func (mx *Mux) Handle(ctx context.Context, w ResponseWriter, m *Message) error {
 	return nil
 }
 
-// Add adds the provided handler to the DefaultMux
-func Add(h Handler) error {
-	return DefaultMux.Add(h)
+// Handle adds the provided handler to the DefaultMux
+func Handle(h Handler) error {
+	return DefaultMux.Handle(h)
 }
 
-// Add a generic handler that supports one or more of the handler
+// Handle adds a generic handler that supports one or more of the handler
 // types. WARNING: This may be removed in the future. Prefer to
 // the specific Add*Handler methods.
-func (mx *Mux) Add(h Handler) error {
+func (mx *Mux) Handle(h Handler) error {
 	var used bool
 	if h, ok := h.(RawHandler); ok {
-		mx.AddRawHandler(h)
+		mx.HandleRaw(h)
 		used = true
 	}
 
 	if h, ok := h.(BackgroundHandler); ok {
-		mx.AddBackgroundHandler(h)
+		mx.HandleBackground(h)
 		used = true
 	}
 
 	if h, ok := h.(CommandHandler); ok {
-		mx.AddCommandHandler(h)
+		mx.HandleCommand(h)
 		used = true
 	}
 
 	if h, ok := h.(HearsHandler); ok {
-		mx.AddHearsHandler(h)
+		mx.HandleHears(h)
 		used = true
 	}
 
 	if h, ok := h.(WebHookHandler); ok {
-		mx.AddWebHookHandler(h)
+		mx.HandleHTTP(h)
 		used = true
 	}
 
@@ -220,14 +220,14 @@ func (mx *Mux) Add(h Handler) error {
 	return nil
 }
 
-// AddRawHandler adds the provided handler to the DefaultMux
-func AddRawHandler(h RawHandler) error {
-	return DefaultMux.AddRawHandler(h)
+// HandleRaw adds the provided handler to the DefaultMux
+func HandleRaw(h RawHandler) error {
+	return DefaultMux.HandleRaw(h)
 }
 
-// AddRawHandler adds the provided handler to the Mux. All
+// HandleRaw adds the provided handler to the Mux. All
 // messages sent to the mux will be forwarded to this handler.
-func (mx *Mux) AddRawHandler(h RawHandler) error {
+func (mx *Mux) HandleRaw(h RawHandler) error {
 	mx.Lock()
 	defer mx.Unlock()
 
@@ -238,14 +238,14 @@ func (mx *Mux) AddRawHandler(h RawHandler) error {
 	return nil
 }
 
-// AddBackgroundHandler adds the provided handler to the DefaultMux
-func AddBackgroundHandler(h BackgroundHandler) error {
-	return DefaultMux.AddBackgroundHandler(h)
+// HandleBackground adds the provided handler to the DefaultMux
+func HandleBackground(h BackgroundHandler) error {
+	return DefaultMux.HandleBackground(h)
 }
 
-// AddBackgroundHandler adds the provided handler to the Mux. It
+// HandleBackground adds the provided handler to the Mux. It
 // will be started with the Mux is started.
-func (mx *Mux) AddBackgroundHandler(h BackgroundHandler) error {
+func (mx *Mux) HandleBackground(h BackgroundHandler) error {
 	mx.Lock()
 	defer mx.Unlock()
 	//name, _ := h.Describe()
@@ -255,15 +255,15 @@ func (mx *Mux) AddBackgroundHandler(h BackgroundHandler) error {
 	return nil
 }
 
-// AddHearsHandler adds the provided handler to the DefaultMux
-func AddHearsHandler(h HearsHandler) error {
-	return DefaultMux.AddHearsHandler(h)
+// HandleHears adds the provided handler to the DefaultMux
+func HandleHears(h HearsHandler) error {
+	return DefaultMux.HandleHears(h)
 }
 
-// AddHearsHandler adds the provided handler to the mux. All
+// HandleHears adds the provided handler to the mux. All
 // messages matching the Hears patterns will be forwarded to
 // the handler.
-func (mx *Mux) AddHearsHandler(h HearsHandler) error {
+func (mx *Mux) HandleHears(h HearsHandler) error {
 	mx.Lock()
 	defer mx.Unlock()
 
@@ -273,22 +273,22 @@ func (mx *Mux) AddHearsHandler(h HearsHandler) error {
 	return nil
 }
 
-// AddCommandHandler adds the provided handler to the DefaultMux
-func AddCommandHandler(h CommandHandler) {
-	DefaultMux.AddCommandHandler(h)
+// HandleCommand adds the provided handler to the DefaultMux
+func HandleCommand(h CommandHandler) {
+	DefaultMux.HandleCommand(h)
 }
 
-// AddCommandHandler Adds the provided handler to the mux.
-func (mx *Mux) AddCommandHandler(h CommandHandler) {
+// HandleCommand adds the provided handler to the mux.
+func (mx *Mux) HandleCommand(h CommandHandler) {
 	mx.Lock()
 	defer mx.Unlock()
 
 	mx.cmds.AddCommandHandler(h)
 }
 
-// AddWebHookHandler adds the provided handler to the DefaultMux
-func AddWebHookHandler(h WebHookHandler) {
-	DefaultMux.AddWebHookHandler(h)
+// HandleHTTP adds the provided handler to the DefaultMux
+func HandleHTTP(h WebHookHandler) {
+	DefaultMux.HandleHTTP(h)
 }
 
 type webHookBridge struct {
@@ -311,11 +311,11 @@ func (whb *webHookBridge) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	whb.nh.ReceiveHTTP(context.Background(), newResponseWriter(whb.s, Message{}), w, r)
 }
 
-// AddWebHookHandler registers h as a WebHook handler. The name
+// HandleHTTP registers h as a WebHook handler. The name
 // of the Mux, and the name of the handler are used to
 // construct a unique URL that can be used to send web
 // requests to this handler
-func (mx *Mux) AddWebHookHandler(h WebHookHandler) {
+func (mx *Mux) HandleHTTP(h WebHookHandler) {
 	mx.Lock()
 	defer mx.Unlock()
 

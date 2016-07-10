@@ -19,7 +19,6 @@ package hugot_test
 
 import (
 	"flag"
-	"fmt"
 	"os"
 
 	"github.com/golang/glog"
@@ -50,14 +49,11 @@ func Example() {
 		glog.Fatal(err)
 	}
 
-	hugot.Add(ping.New())
-	hugot.Add(tableflip.New())
-	hugot.Add(testcli.New())
+	hugot.Handle(ping.New())
+	hugot.Handle(tableflip.New())
+	hugot.Handle(testcli.New())
 
-	// For web handlers, we probably want to know the URL
-	// that it is registered at.
-	url := hugot.AddWebHookHandler(testweb.New())
-	fmt.Printf("Web hook registered at %s\n", url)
+	hugot.HandleHTTP(testweb.New())
 
 	// This will start read , process and forward
 	// messages from the adapter into the default

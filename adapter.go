@@ -39,7 +39,7 @@ type TextOnly interface {
 	IsTextOnly()
 }
 
-// TextOnlySender returns true if the sender only support text.
+// IsTextOnly returns true if the sender only support text.
 func IsTextOnly(s Sender) bool {
 	_, ok := s.(TextOnly)
 	return ok

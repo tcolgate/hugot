@@ -49,12 +49,12 @@ func main() {
 		glog.Fatal(err)
 	}
 
-	hugot.Add(ping.New())
-	hugot.Add(tableflip.New())
-	hugot.Add(testcli.New())
+	hugot.Handle(ping.New())
+	hugot.Handle(tableflip.New())
+	hugot.Handle(testcli.New())
 
 	wh := testweb.New()
-	hugot.AddWebHookHandler(wh)
+	hugot.HandleHTTP(wh)
 
 	u, _ := url.Parse("http://localhost:8080")
 	hugot.SetURL(u)

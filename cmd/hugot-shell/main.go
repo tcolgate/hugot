@@ -60,13 +60,12 @@ func main() {
 		glog.Fatal(err)
 	}
 
-	hugot.Add(ping.New())
-	hugot.Add(testcli.New())
-	hugot.Add(tableflip.New())
+	hugot.Handle(ping.New())
+	hugot.Handle(testcli.New())
+	hugot.Handle(tableflip.New())
 
-	hugot.AddBackgroundHandler(hugot.NewBackgroundHandler("test bg", "testing bg", bgHandler))
-	url := hugot.AddWebHookHandler(hugot.NewNetHTTPHandlerFunc("test", "test http", httpHandler))
-	log.Println(url.String())
+	hugot.HandleBackground(hugot.NewBackgroundHandler("test bg", "testing bg", bgHandler))
+	hugot.HandleHTTP(hugot.NewNetHTTPHandlerFunc("test", "test http", httpHandler))
 
 	go bot.ListenAndServe(ctx, a, nil)
 	go http.ListenAndServe(":8080", nil)
