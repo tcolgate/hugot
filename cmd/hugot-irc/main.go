@@ -22,7 +22,7 @@ import (
 	"flag"
 	"strings"
 
-	"golang.org/x/net/context"
+	"context"
 
 	// Add some handlers
 	"github.com/fluffle/goirc/client"

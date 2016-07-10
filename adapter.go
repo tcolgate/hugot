@@ -18,7 +18,7 @@
 package hugot
 
 import (
-	"golang.org/x/net/context"
+	"context"
 )
 
 // Receiver cam ne used to receive messages

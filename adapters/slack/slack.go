@@ -25,7 +25,7 @@ import (
 	"regexp"
 	"strings"
 
-	"golang.org/x/net/context"
+	"context"
 
 	"github.com/golang/glog"
 	"github.com/prometheus/client_golang/prometheus"

@@ -24,7 +24,7 @@ import (
 	"net/http"
 	"time"
 
-	"golang.org/x/net/context"
+	"context"
 
 	"github.com/golang/glog"
 	bot "github.com/tcolgate/hugot"

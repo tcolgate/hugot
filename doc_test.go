@@ -22,7 +22,7 @@ import (
 	"os"
 
 	"github.com/golang/glog"
-	"golang.org/x/net/context"
+	"context"
 
 	"github.com/tcolgate/hugot"
 

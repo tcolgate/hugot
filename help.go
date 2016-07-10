@@ -8,7 +8,7 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"golang.org/x/net/context"
+	"context"
 )
 
 type muxHelp struct {

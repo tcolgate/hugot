@@ -21,7 +21,7 @@ package ping
 import (
 	"fmt"
 
-	"golang.org/x/net/context"
+	"context"
 
 	"github.com/golang/glog"
 	"github.com/tcolgate/hugot"

@@ -26,7 +26,7 @@ import (
 
 	"github.com/golang/glog"
 
-	"golang.org/x/net/context"
+	"context"
 )
 
 func init() {

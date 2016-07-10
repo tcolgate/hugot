@@ -26,7 +26,7 @@ import (
 	"sync"
 	"time"
 
-	"golang.org/x/net/context"
+	"context"
 
 	"github.com/fluffle/goirc/client"
 	iglog "github.com/fluffle/goirc/logging/glog"

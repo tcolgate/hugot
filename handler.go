@@ -30,7 +30,7 @@ import (
 	"sort"
 	"strings"
 
-	"golang.org/x/net/context"
+	"context"
 
 	"github.com/golang/glog"
 	"github.com/mattn/go-shellwords"

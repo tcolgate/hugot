@@ -23,7 +23,7 @@ import (
 	"fmt"
 	"time"
 
-	"golang.org/x/net/context"
+	"context"
 
 	"github.com/tcolgate/hugot"
 )

@@ -23,7 +23,7 @@ import (
 	"net/url"
 	"os"
 
-	"golang.org/x/net/context"
+	"context"
 
 	"github.com/golang/glog"
 	bot "github.com/tcolgate/hugot"
