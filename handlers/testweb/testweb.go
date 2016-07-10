@@ -19,14 +19,31 @@
 package testweb
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 
 	"github.com/tcolgate/hugot"
 )
 
-func New() hugot.WebHookHandler {
-	return hugot.NewWebHookHandler("testweb", "does things", handleWeb)
+func New() hugot.Handler {
+
+	return &testweb{
+		hugot.NewWebHookHandler("testweb", "says hello from the world wide web", handleWeb),
+	}
+}
+
+type testweb struct {
+	hugot.WebHookHandler
+}
+
+func (t *testweb) Describe() (string, string) {
+	return "testweb", "Get url of testweb"
+}
+
+func (t *testweb) Command(ctx context.Context, w hugot.ResponseWriter, m *hugot.Message) error {
+	fmt.Fprintf(w, "url is %s", t.URL())
+	return nil
 }
 
 func handleWeb(w http.ResponseWriter, r *http.Request) {

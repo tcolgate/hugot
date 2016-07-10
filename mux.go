@@ -18,6 +18,7 @@
 package hugot
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -99,6 +100,9 @@ func (mx *Mux) url() *url.URL {
 
 // SetURL sets the base URL for web hooks.
 func SetURL(b *url.URL) {
+	if b.Path != "" {
+		panic(errors.New("Can't set URL with path at the moment, sorry"))
+	}
 	DefaultMux.SetURL(b)
 }
 

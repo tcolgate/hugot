@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"time"
 
 	"context"
@@ -69,8 +70,8 @@ func main() {
 	hugot.HandleBackground(hugot.NewBackgroundHandler("test bg", "testing bg", bgHandler))
 	hugot.HandleHTTP(hugot.NewWebHookHandler("test", "test http", httpHandler))
 
-	//u, _ := url.Parse("http://localhost:8080/evil")
-	//hugot.SetURL(u)
+	u, _ := url.Parse("http://localhost:8080")
+	hugot.SetURL(u)
 
 	go bot.ListenAndServe(ctx, a, nil)
 	go http.ListenAndServe(":8081", nil)
