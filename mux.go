@@ -31,7 +31,8 @@ import (
 
 func init() {
 	DefaultMux = NewMux("hugot", "")
-	DefaultMux.httpm = http.DefaultServeMux
+	http.Handle("/hugot", DefaultMux)
+	http.Handle("/hugot/", DefaultMux)
 }
 
 // Mux is a Handler that multiplexes messages to a set of Command, Hears, and
@@ -46,7 +47,7 @@ type Mux struct {
 	hndlrs   []Handler                         // All the handlers
 	rhndlrs  []RawHandler                      // Raw handlers
 	bghndlrs []BackgroundHandler               // Long running background handlers
-	whhndlrs []WebHookHandler                  // WebHooks
+	whhndlrs map[string]WebHookHandler         // WebHooks
 	hears    map[*regexp.Regexp][]HearsHandler // Hearing handlers
 	cmds     *CommandSet                       // Command handlers
 	httpm    *http.ServeMux                    // http Mux
@@ -65,6 +66,7 @@ func NewMux(name, desc string) *Mux {
 		RWMutex:  &sync.RWMutex{},
 		rhndlrs:  []RawHandler{},
 		bghndlrs: []BackgroundHandler{},
+		whhndlrs: map[string]WebHookHandler{},
 		hears:    map[*regexp.Regexp][]HearsHandler{},
 		cmds:     NewCommandSet(),
 		httpm:    http.NewServeMux(),
@@ -110,12 +112,9 @@ func (mx *Mux) SetURL(b *url.URL) {
 	mx.burl = b
 	for _, h := range mx.whhndlrs {
 		n, _ := h.Describe()
-		p := fmt.Sprintf("/%s/%s", mx.name, n)
+		p := fmt.Sprintf("%s/%s/%s/", b.Path, mx.name, n)
 		nu := *b
 		nu.Path = p
-		if b.Path != "" {
-			nu.Path = b.Path + "/" + nu.Path
-		}
 		h.SetURL(&nu)
 	}
 }
@@ -286,29 +285,20 @@ func (mx *Mux) HandleCommand(h CommandHandler) {
 	mx.cmds.AddCommandHandler(h)
 }
 
-// HandleHTTP adds the provided handler to the DefaultMux
-func HandleHTTP(h WebHookHandler) {
-	DefaultMux.HandleHTTP(h)
-}
-
 type webHookBridge struct {
-	m  *Mux
-	s  Sender
-	nh WebHookHandler
+	nh http.Handler
 }
 
 func (whb *webHookBridge) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if whb.s == nil {
-		whb.m.RLock()
-		defer whb.m.RUnlock()
+	if glog.V(2) {
+		glog.Infof("webHookBridge ServeHTTP %v %s\n", *whb, *r)
+	}
+	whb.nh.ServeHTTP(w, r)
+}
 
-		whb.s = whb.m.whsndr
-	}
-	if whb.s == nil {
-		w.WriteHeader(http.StatusNotFound)
-		return
-	}
-	whb.nh.ReceiveHTTP(context.Background(), newResponseWriter(whb.s, Message{}), w, r)
+// HandleHTTP adds the provided handler to the DefaultMux
+func HandleHTTP(h WebHookHandler) {
+	DefaultMux.HandleHTTP(h)
 }
 
 // HandleHTTP registers h as a WebHook handler. The name
@@ -319,21 +309,27 @@ func (mx *Mux) HandleHTTP(h WebHookHandler) {
 	mx.Lock()
 	defer mx.Unlock()
 
-	mx.whhndlrs = append(mx.whhndlrs, h)
 	n, _ := h.Describe()
 	p := fmt.Sprintf("/%s/%s", mx.name, n)
+	mx.httpm.Handle(p, h)
+	mx.httpm.Handle(p+"/", h)
 	if glog.V(2) {
-		glog.Infof("register webhook at %s ", p)
+		glog.Infof("registering %v at %s, on %v\n", h, p, mx.httpm)
 	}
-	mx.httpm.Handle(p, &webHookBridge{mx, nil, h})
+	mx.whhndlrs[n] = h
 
-	nu := *mx.url()
-	nu.Path = nu.Path + "/" + p
+	mu := mx.url()
+	nu := *mu
+	nu.Path = fmt.Sprintf("/%s/%s/", mx.name, n)
 	h.SetURL(&nu)
 }
 
 // ServeHTTP iplements http.ServeHTTP for a Mux to allow it to
 // act as a web server.
 func (mx *Mux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprintf(w, "in here at least")
+	if glog.V(2) {
+		glog.Infof("Mux ServeHTTP %s\n", *r)
+	}
 	mx.httpm.ServeHTTP(w, r)
 }

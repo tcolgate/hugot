@@ -22,8 +22,6 @@ import (
 	"fmt"
 	"net/http"
 
-	"golang.org/x/net/context"
-
 	"github.com/tcolgate/hugot"
 )
 
@@ -31,9 +29,6 @@ func New() hugot.WebHookHandler {
 	return hugot.NewWebHookHandler("testweb", "does things", handleWeb)
 }
 
-func handleWeb(ctx context.Context, hw hugot.ResponseWriter, w http.ResponseWriter, r *http.Request) {
+func handleWeb(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Hello world")
-
-	hw.SetChannel("bottest")
-	fmt.Fprint(hw, "Hello from world wide web")
 }

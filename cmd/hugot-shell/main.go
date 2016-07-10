@@ -36,6 +36,7 @@ import (
 	"github.com/tcolgate/hugot/handlers/ping"
 	"github.com/tcolgate/hugot/handlers/tableflip"
 	"github.com/tcolgate/hugot/handlers/testcli"
+	"github.com/tcolgate/hugot/handlers/testweb"
 )
 
 var nick = flag.String("nick", "minion", "Bot nick")
@@ -63,12 +64,16 @@ func main() {
 	hugot.Handle(ping.New())
 	hugot.Handle(testcli.New())
 	hugot.Handle(tableflip.New())
+	hugot.Handle(testweb.New())
 
 	hugot.HandleBackground(hugot.NewBackgroundHandler("test bg", "testing bg", bgHandler))
-	hugot.HandleHTTP(hugot.NewNetHTTPHandlerFunc("test", "test http", httpHandler))
+	hugot.HandleHTTP(hugot.NewWebHookHandler("test", "test http", httpHandler))
+
+	//u, _ := url.Parse("http://localhost:8080/evil")
+	//hugot.SetURL(u)
 
 	go bot.ListenAndServe(ctx, a, nil)
-	go http.ListenAndServe(":8080", nil)
+	go http.ListenAndServe(":8081", nil)
 
 	a.Main()
 

@@ -429,7 +429,7 @@ type WebHookHandler interface {
 	Handler
 	URL() *url.URL   // Is called to retrieve the location of the Handler
 	SetURL(*url.URL) // Is called after the WebHook is added, to inform it where it lives
-	ReceiveHTTP(ctx context.Context, hw ResponseWriter, w http.ResponseWriter, r *http.Request)
+	http.Handler
 }
 
 // WebHookHandlerFunc describes the called convention for a WebHook.
@@ -439,17 +439,17 @@ type baseWebHookHandler struct {
 	ctx context.Context
 	a   Adapter
 	Handler
-	hf  WebHookHandlerFunc
+	hf  http.HandlerFunc
 	url *url.URL
 }
 
-// NewWebHookPHandler creates a new WebHookHandler provided name and description.
-func (bwhh *baseWebHookHandler) ReceiveHTTP(ctx context.Context, hw ResponseWriter, w http.ResponseWriter, r *http.Request) {
-	bwhh.hf(ctx, hw, w, r)
+// ServeHTTP  implement the http.Handler interface for a baseWebHandler
+func (bwhh *baseWebHookHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	bwhh.hf(w, r)
 }
 
 // NewWebHookHandler creates a new WebHookHandler provided name and description.
-func NewWebHookHandler(name, desc string, hf WebHookHandlerFunc) WebHookHandler {
+func NewWebHookHandler(name, desc string, hf http.HandlerFunc) WebHookHandler {
 	return &baseWebHookHandler{
 		Handler: newBaseHandler(name, desc),
 		url:     &url.URL{},
@@ -458,35 +458,14 @@ func NewWebHookHandler(name, desc string, hf WebHookHandlerFunc) WebHookHandler 
 }
 
 func (bwhh *baseWebHookHandler) SetURL(u *url.URL) {
+	if glog.V(2) {
+		glog.Infof("SetURL to %s", *u)
+	}
 	bwhh.url = u
 }
 
 func (bwhh *baseWebHookHandler) URL() *url.URL {
 	return bwhh.url
-}
-
-// NewNetHTTPHandlerFunc creates a new WebHookHandler with the http.HandlerFunc h, and the
-// provided name and description. The response wrtier from the webhook handler is
-// discarded
-func NewNetHTTPHandlerFunc(name, desc string, h http.HandlerFunc) WebHookHandler {
-	return &baseWebHookHandler{
-		Handler: newBaseHandler(name, desc),
-		hf: func(ctx context.Context, hw ResponseWriter, w http.ResponseWriter, r *http.Request) {
-			h(w, r)
-		},
-	}
-}
-
-// NewNetHTTPHandler creates a new WebHookHandler with the http.Handler h, and the
-// provided name and description. The response writer from the webhook handler is
-// discarded
-func NewNetHTTPHandler(name, desc string, h http.Handler) WebHookHandler {
-	return &baseWebHookHandler{
-		Handler: newBaseHandler(name, desc),
-		hf: func(ctx context.Context, hw ResponseWriter, w http.ResponseWriter, r *http.Request) {
-			h.ServeHTTP(w, r)
-		},
-	}
 }
 
 func glogPanic() {
