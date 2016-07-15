@@ -379,12 +379,18 @@ func (cs *CommandSet) NextCommand(ctx context.Context, w ResponseWriter, m *Mess
 			matches = append(matches, cmd)
 			matchesns = append(matchesns, name)
 		}
+		if name == m.args[0] {
+			ematches = append(ematches, cmd)
+		}
 	}
 	if len(matches) == 0 && len(ematches) == 0 {
 		return ErrUnknownCommand
 	}
 	if len(ematches) > 1 {
 		return fmt.Errorf("multiple exact matches for %s", m.args[0])
+	}
+	if len(ematches) == 1 {
+		return RunCommandHandler(ctx, ematches[0], w, m)
 	}
 	if len(matches) == 1 {
 		return RunCommandHandler(ctx, matches[0], w, m)
