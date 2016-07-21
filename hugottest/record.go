@@ -14,6 +14,9 @@ type ResponseRecorder struct {
 }
 
 func (rr *ResponseRecorder) Send(ctx context.Context, m *hugot.Message) {
+	if m.Channel == "" {
+		m.Channel = rr.defchan
+	}
 	rr.Messages = append(rr.Messages, *m)
 }
 

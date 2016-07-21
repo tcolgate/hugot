@@ -26,7 +26,7 @@ import (
 	"github.com/tcolgate/hugot"
 )
 
-func New() hugot.Handler {
+func New() *testweb {
 
 	return &testweb{
 		hugot.NewWebHookHandler("testweb", "says hello from the world wide web", handleWeb),

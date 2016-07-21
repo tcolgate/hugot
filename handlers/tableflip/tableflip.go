@@ -35,7 +35,7 @@ import (
 type tableflip struct {
 }
 
-func New() hugot.HearsHandler {
+func New() *tableflip {
 	return &tableflip{}
 }
 

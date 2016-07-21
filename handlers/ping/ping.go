@@ -30,7 +30,7 @@ import (
 type ping struct {
 }
 
-func New() hugot.CommandHandler {
+func New() *ping {
 	return &ping{}
 }
 
