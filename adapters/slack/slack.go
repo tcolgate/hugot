@@ -243,6 +243,7 @@ func (s *slack) slackMsgToHugot(me *client.MessageEvent) *hugot.Message {
 		Channel: cname,
 		From:    uname,
 		To:      "",
+		UserID:  me.User,
 		Private: private,
 		ToBot:   tobot,
 		Text:    txt,

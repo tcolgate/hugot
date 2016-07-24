@@ -524,6 +524,9 @@ func RunHandlers(ctx context.Context, h Handler, a Adapter) {
 	for {
 		select {
 		case m := <-a.Receive():
+			if glog.V(3) {
+				glog.Infof("Message: %#v", *m)
+			}
 			if rh, ok := h.(RawHandler); ok {
 				go RunRawHandler(ctx, rh, newResponseWriter(a, *m), m)
 			}

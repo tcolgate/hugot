@@ -92,11 +92,13 @@ func (i *irc) Start() {
 func (i *irc) run() {
 	iglog.Init()
 	for {
-		glog.Info("In here")
 		i.Conn = client.Client(i.cfg)
 
 		disconnected := make(chan struct{})
 		i.HandleFunc(client.DISCONNECTED, func(c *client.Conn, l *client.Line) {
+			if glog.V(1) {
+				glog.Info("IRC Disconnected")
+			}
 			close(disconnected)
 		})
 
@@ -112,6 +114,9 @@ func (i *irc) run() {
 		})
 
 		i.HandleFunc(client.CONNECTED, func(conn *client.Conn, l *client.Line) {
+			if glog.V(1) {
+				glog.Info("IRC Connected")
+			}
 			for _, c := range i.defChans {
 				i.Join(c)
 			}
@@ -154,6 +159,7 @@ func (i *irc) eventToHugot(l *client.Line) *hugot.Message {
 		To:      nick,
 		Text:    txt,
 		ToBot:   tobot,
+		UserID:  fmt.Sprintf("%s@%s", l.Ident, l.Host),
 		Private: priv,
 	}
 }

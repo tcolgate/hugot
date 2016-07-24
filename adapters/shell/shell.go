@@ -22,9 +22,11 @@ package shell
 import (
 	"log"
 	"os"
+	"os/user"
 
 	"context"
 
+	"github.com/golang/glog"
 	"github.com/tcolgate/hugot"
 
 	"github.com/chzyer/readline"
@@ -87,7 +89,13 @@ func (s *shell) Main() {
 			break
 		}
 
-		s.rch <- &hugot.Message{Text: ln, ToBot: true, From: s.user}
+		u, err := user.Current()
+		if err != nil {
+			glog.Errorf("Could not get current user")
+			continue
+		}
+
+		s.rch <- &hugot.Message{Text: ln, ToBot: true, From: s.user, UserID: u.Uid}
 	}
 
 	rl.Clean()
