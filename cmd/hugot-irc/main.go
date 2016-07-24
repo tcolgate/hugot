@@ -20,12 +20,14 @@ package main
 import (
 	"crypto/tls"
 	"flag"
+	"net/http"
 	"strings"
 
 	"context"
 
 	// Add some handlers
 	"github.com/fluffle/goirc/client"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/tcolgate/hugot"
 	"github.com/tcolgate/hugot/adapters/irc"
 	"github.com/tcolgate/hugot/handlers/ping"
@@ -54,6 +56,9 @@ func main() {
 
 	hugot.Handle(ping.New())
 	hugot.Handle(tableflip.New())
+
+	http.Handle("/metrics", prometheus.Handler())
+	go http.ListenAndServe(":8081", nil)
 
 	hugot.ListenAndServe(context.Background(), a, nil)
 }

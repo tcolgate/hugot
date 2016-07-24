@@ -28,6 +28,7 @@ import (
 	"context"
 
 	"github.com/golang/glog"
+	"github.com/prometheus/client_golang/prometheus"
 	bot "github.com/tcolgate/hugot"
 	"github.com/tcolgate/hugot/adapters/shell"
 
@@ -74,6 +75,7 @@ func main() {
 	hugot.SetURL(u)
 
 	go bot.ListenAndServe(ctx, a, nil)
+	http.Handle("/metrics", prometheus.Handler())
 	go http.ListenAndServe(":8081", nil)
 
 	a.Main()
