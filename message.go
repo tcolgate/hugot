@@ -36,6 +36,8 @@ type Message struct {
 	From    string
 	Channel string
 
+	UserID string // Verified user identitify within the source adapter
+
 	Text        string // A plain text message
 	Attachments []Attachment
 
