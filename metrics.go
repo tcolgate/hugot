@@ -7,12 +7,12 @@ var (
 		Name: "hugot_messages_sent_total",
 		Help: "Number of messages sent.",
 	},
-		[]string{"handler", "channel", "user"})
+		[]string{"adapter", "channel", "user"})
 	messagesRx = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name: "hugot_messages_received_total",
-		Help: "Number of slack messages received.",
+		Help: "Number of messages received.",
 	},
-		[]string{"handler", "channel", "user"})
+		[]string{"adapter", "channel", "user"})
 )
 
 func init() {

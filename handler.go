@@ -104,11 +104,11 @@ type ResponseWriter interface {
 type responseWriter struct {
 	snd Sender
 	msg Message
-	hn  string
+	an  string
 }
 
-func newResponseWriter(s Sender, m Message, hn string) ResponseWriter {
-	return &responseWriter{s, m, hn}
+func newResponseWriter(s Sender, m Message, an string) ResponseWriter {
+	return &responseWriter{s, m, an}
 }
 
 // ResponseWriterFromContext constructs a ResponseWriter from the adapter
@@ -119,8 +119,8 @@ func ResponseWriterFromContext(ctx context.Context) (ResponseWriter, bool) {
 	if !ok {
 		return nil, false
 	}
-	hn := fmt.Sprintf("%T", s)
-	return newResponseWriter(s, Message{}, hn), true
+	an := fmt.Sprintf("%T", s)
+	return newResponseWriter(s, Message{}, an), true
 }
 
 // Write implements the io.Writer interface. All writes create a single
@@ -149,7 +149,7 @@ func (w *responseWriter) SetSender(s Sender) {
 
 // Send implements the Sender interface
 func (w *responseWriter) Send(ctx context.Context, m *Message) {
-	messagesTx.WithLabelValues(w.hn, m.Channel, m.From).Inc()
+	messagesTx.WithLabelValues(w.an, m.Channel, m.From).Inc()
 	w.snd.Send(ctx, m)
 }
 
@@ -516,34 +516,33 @@ func glogPanic() {
 // and  inform any running handlers. WARNING: probably not to be used
 // directly and may be made private in the future.
 func RunHandlers(ctx context.Context, h Handler, a Adapter) {
+	an := fmt.Sprintf("%T", a)
 	if bh, ok := h.(BackgroundHandler); ok {
-		hn := fmt.Sprintf("%T", bh)
-		RunBackgroundHandler(ctx, bh, newResponseWriter(a, Message{}, hn))
+		RunBackgroundHandler(ctx, bh, newResponseWriter(a, Message{}, an))
 	}
 
 	if wh, ok := h.(WebHookHandler); ok {
 		wh.SetAdapter(a)
 	}
 
-	hn := fmt.Sprintf("%T", h)
 	for {
 		select {
 		case m := <-a.Receive():
 			if glog.V(3) {
 				glog.Infof("Message: %#v", *m)
 			}
-			messagesRx.WithLabelValues(hn, m.Channel, m.From).Inc()
+			messagesRx.WithLabelValues(an, m.Channel, m.From).Inc()
 
 			if rh, ok := h.(RawHandler); ok {
-				go RunRawHandler(ctx, rh, newResponseWriter(a, *m, hn), m)
+				go RunRawHandler(ctx, rh, newResponseWriter(a, *m, an), m)
 			}
 
 			if hh, ok := h.(HearsHandler); ok {
-				go RunHearsHandler(ctx, hh, newResponseWriter(a, *m, hn), m)
+				go RunHearsHandler(ctx, hh, newResponseWriter(a, *m, an), m)
 			}
 
 			if ch, ok := h.(CommandHandler); ok {
-				go RunCommandHandler(ctx, ch, newResponseWriter(a, *m, hn), m)
+				go RunCommandHandler(ctx, ch, newResponseWriter(a, *m, an), m)
 			}
 		case <-ctx.Done():
 			return
