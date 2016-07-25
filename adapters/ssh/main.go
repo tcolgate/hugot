@@ -1,6 +1,7 @@
 package ssh
 
 import (
+	"context"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -10,19 +11,22 @@ import (
 	"syscall"
 	"unsafe"
 
-	"github.com/chzyer/readline"
 	"github.com/golang/glog"
 	"github.com/tcolgate/hugot"
 	"golang.org/x/crypto/ssh"
+	"golang.org/x/crypto/ssh/terminal"
 )
 
 type sshAdpt struct {
+	nick string
+
 	listener net.Listener
 	config   *ssh.ServerConfig
 
 	running sync.Once
 
 	rch chan *hugot.Message
+	sch chan *hugot.Message
 }
 
 func (a *sshAdpt) runOnce() {
@@ -32,25 +36,29 @@ func (a *sshAdpt) runOnce() {
 }
 
 // New creates a new SSH Adapter
-func New(l net.Listener, cfg *ssh.ServerConfig) *sshAdpt {
+func New(nick string, l net.Listener, cfg *ssh.ServerConfig) *sshAdpt {
 	return &sshAdpt{
+		nick,
 		l,
 		cfg,
 		sync.Once{},
 
 		make(chan *hugot.Message),
+		make(chan *hugot.Message),
 	}
 }
 
 func (a *sshAdpt) Receive() <-chan *hugot.Message {
-	a.run()
+	go a.run()
 
-	return nil
+	return a.rch
 }
 
-func (a *sshAdpt) Send(*hugot.Message) {
-	a.run()
+func (a *sshAdpt) Send(ctx context.Context, m *hugot.Message) {
+	go a.run()
 
+	// need to route this to the right conn
+	glog.Infof("got %#v", *m)
 }
 
 func (a *sshAdpt) run() {
@@ -98,56 +106,23 @@ func (a *sshAdpt) handleChannel(newChannel ssh.NewChannel, sshConn ssh.Conn) {
 	session := string(sshConn.SessionID())
 
 	// Prepare teardown function
-	close := func() {
+	closeconn := func() {
 		connection.Close()
 	}
 
-	rl, err := readline.NewEx(&readline.Config{
-		UniqueEditLine: true,
-	})
-	if err != nil {
-		glog.Error(err.Error())
-		return
-	}
-	defer rl.Close()
-
-	rl.ResetHistory()
-	rl.SetPrompt("> ")
+	t := terminal.NewTerminal(connection, a.nick+"> ")
 
 	done := make(chan struct{})
 	go func() {
 		for {
 			select {
-			case m := <-s.sch:
-				log.Printf("%s: %s", s.nick, m.Text)
+			case m := <-a.sch:
+				fmt.Fprintf(t, "%s: %s", a.nick, m.Text)
 			case <-done:
 				break
 			}
 		}
 		done <- struct{}{}
-	}()
-
-	for {
-		ln, err := rl.Readline()
-		if err != nil {
-			break
-		}
-
-		s.rch <- &hugot.Message{Text: ln, ToBot: true, From: user, UserID: user, Channel: session}
-	}
-
-	rl.Clean()
-	done <- struct{}{}
-
-	//pipe session to bash and visa-versa
-	var once sync.Once
-	go func() {
-		io.Copy(connection, rl)
-		once.Do(close)
-	}()
-	go func() {
-		io.Copy(rl, connection)
-		once.Do(close)
 	}()
 
 	// Sessions have out-of-band requests such as "shell", "pty-req" and "env"
@@ -171,6 +146,26 @@ func (a *sshAdpt) handleChannel(newChannel ssh.NewChannel, sshConn ssh.Conn) {
 			}
 		}
 	}()
+
+	for {
+		glog.Infof("read loop")
+		//ln, err := rl.Readline()
+		//if err != nil {
+		//		break
+		//	}
+		ln, err := t.ReadLine()
+		if err == io.EOF {
+			return
+		}
+		if err != nil {
+			return
+		}
+
+		a.rch <- &hugot.Message{Text: string(ln), ToBot: true, From: user, UserID: user, Channel: session}
+	}
+
+	done <- struct{}{}
+	closeconn()
 }
 
 // parseDims extracts terminal dimensions (width x height) from the provided buffer.
@@ -193,49 +188,3 @@ func setWinsize(fd uintptr, w, h uint32) {
 	ws := &winsize{Width: uint16(w), Height: uint16(h)}
 	syscall.Syscall(syscall.SYS_IOCTL, fd, uintptr(syscall.TIOCSWINSZ), uintptr(unsafe.Pointer(ws)))
 }
-
-/*
-	rl, err := readline.NewEx(&readline.Config{
-		UniqueEditLine: true,
-	})
-	if err != nil {
-		panic(err)
-	}
-	defer rl.Close()
-
-	rl.ResetHistory()
-	log.SetOutput(rl.Stderr())
-
-	rl.SetPrompt(s.user + "> ")
-
-	done := make(chan struct{})
-	go func() {
-		for {
-			select {
-			case m := <-s.sch:
-				log.Printf("%s: %s", s.nick, m.Text)
-			case <-done:
-				break
-			}
-		}
-		done <- struct{}{}
-	}()
-
-	for {
-		ln, err := rl.Readline()
-		if err != nil {
-			break
-		}
-
-		u, err := user.Current()
-		if err != nil {
-			glog.Errorf("Could not get current user")
-			continue
-		}
-
-		s.rch <- &hugot.Message{Text: ln, ToBot: true, From: s.user, UserID: u.Uid}
-	}
-
-	rl.Clean()
-	done <- struct{}{}
-*/
