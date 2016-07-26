@@ -82,6 +82,21 @@ func (a *sshAdpt) run() {
 			continue
 		}
 		// Before use, a handshake must be performed on the incoming net.Conn.
+		a.config.PublicKeyCallback = func(conn ssh.ConnMetadata, key ssh.PublicKey) (*ssh.Permissions, error) {
+			keyStr := strings.TrimSpace(string(ssh.MarshalAuthorizedKey(key)))
+			if glog.V(2) {
+				glog.Infof("ssh public key: %s", keyStr)
+			}
+
+			//			pkey, err := models.SearchPublicKeyByContent(keyStr)
+			//			if err != nil {
+			//				// handle error
+			//				return nil, err
+			//			}
+			//			return &ssh.Permissions{Extensions: map[string]string{"key-id": com.ToStr(pkey.ID)}}, nil
+			return nil, nil
+		}
+
 		sshConn, chans, reqs, err := ssh.NewServerConn(tcpConn, a.config)
 		if err != nil {
 			glog.Errorf("Failed to handshake (%s)", err)
