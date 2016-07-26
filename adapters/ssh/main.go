@@ -2,11 +2,12 @@ package ssh
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/binary"
 	"fmt"
 	"io"
-	"log"
 	"net"
+	"strings"
 	"sync"
 	"syscall"
 	"unsafe"
@@ -26,7 +27,9 @@ type sshAdpt struct {
 	running sync.Once
 
 	rch chan *hugot.Message
-	sch chan *hugot.Message
+
+	sync.RWMutex
+	schs map[string]chan *hugot.Message
 }
 
 func (a *sshAdpt) runOnce() {
@@ -44,7 +47,9 @@ func New(nick string, l net.Listener, cfg *ssh.ServerConfig) *sshAdpt {
 		sync.Once{},
 
 		make(chan *hugot.Message),
-		make(chan *hugot.Message),
+
+		sync.RWMutex{},
+		make(map[string]chan *hugot.Message),
 	}
 }
 
@@ -57,8 +62,16 @@ func (a *sshAdpt) Receive() <-chan *hugot.Message {
 func (a *sshAdpt) Send(ctx context.Context, m *hugot.Message) {
 	go a.run()
 
-	// need to route this to the right conn
-	glog.Infof("got %#v", *m)
+	a.RLock()
+	sch, ok := a.schs[m.Channel]
+	a.RUnlock()
+
+	if !ok {
+		glog.Errorf("ssh command to unknown session")
+		return
+	}
+
+	sch <- m
 }
 
 func (a *sshAdpt) run() {
@@ -71,7 +84,7 @@ func (a *sshAdpt) run() {
 		// Before use, a handshake must be performed on the incoming net.Conn.
 		sshConn, chans, reqs, err := ssh.NewServerConn(tcpConn, a.config)
 		if err != nil {
-			log.Printf("Failed to handshake (%s)", err)
+			glog.Errorf("Failed to handshake (%s)", err)
 			continue
 		}
 
@@ -98,26 +111,32 @@ func (a *sshAdpt) handleChannel(newChannel ssh.NewChannel, sshConn ssh.Conn) {
 
 	connection, requests, err := newChannel.Accept()
 	if err != nil {
-		log.Printf("Could not accept channel (%s)", err)
+		glog.Errorf("Could not accept channel (%s)", err)
 		return
 	}
 
 	user := sshConn.User()
-	session := string(sshConn.SessionID())
+	session := base64.StdEncoding.EncodeToString(sshConn.SessionID())
+	a.Lock()
+	sch := make(chan *hugot.Message)
+	a.schs[session] = sch
+	a.Unlock()
 
 	// Prepare teardown function
 	closeconn := func() {
 		connection.Close()
 	}
 
-	t := terminal.NewTerminal(connection, a.nick+"> ")
+	t := terminal.NewTerminal(connection, user+"> ")
 
 	done := make(chan struct{})
 	go func() {
 		for {
 			select {
-			case m := <-a.sch:
-				fmt.Fprintf(t, "%s: %s", a.nick, m.Text)
+			case m := <-sch:
+				for _, l := range strings.Split(m.Text, "\n") {
+					fmt.Fprintf(t, "%s: %s\r\n", a.nick, l)
+				}
 			case <-done:
 				break
 			}
@@ -148,21 +167,20 @@ func (a *sshAdpt) handleChannel(newChannel ssh.NewChannel, sshConn ssh.Conn) {
 	}()
 
 	for {
-		glog.Infof("read loop")
-		//ln, err := rl.Readline()
-		//if err != nil {
-		//		break
-		//	}
 		ln, err := t.ReadLine()
 		if err == io.EOF {
-			return
+			break
 		}
 		if err != nil {
-			return
+			break
 		}
 
 		a.rch <- &hugot.Message{Text: string(ln), ToBot: true, From: user, UserID: user, Channel: session}
 	}
+
+	a.Lock()
+	defer a.Unlock()
+	delete(a.schs, session)
 
 	done <- struct{}{}
 	closeconn()
