@@ -39,6 +39,7 @@ import (
 	"github.com/tcolgate/hugot/handlers/tableflip"
 	"github.com/tcolgate/hugot/handlers/testcli"
 	"github.com/tcolgate/hugot/handlers/testweb"
+	"github.com/tcolgate/hugot/handlers/uptime"
 )
 
 var nick = flag.String("nick", "minion", "Bot nick")
@@ -64,6 +65,7 @@ func main() {
 	}
 
 	hugot.Handle(ping.New())
+	hugot.Handle(uptime.New())
 	hugot.Handle(testcli.New())
 	hugot.Handle(tableflip.New())
 	hugot.Handle(testweb.New())
