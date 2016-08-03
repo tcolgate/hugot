@@ -62,5 +62,5 @@ func main() {
 	glog.Infof("webhook at %s", wh.URL())
 
 	go http.ListenAndServe(":8080", nil)
-	bot.ListenAndServe(ctx, a, nil)
+	bot.ListenAndServe(ctx, nil, a)
 }

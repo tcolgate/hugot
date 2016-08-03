@@ -393,10 +393,10 @@ func (cs *CommandSet) NextCommand(ctx context.Context, w ResponseWriter, m *Mess
 		return fmt.Errorf("multiple exact matches for %s", m.args[0])
 	}
 	if len(ematches) == 1 {
-		return RunCommandHandler(ctx, ematches[0], w, m)
+		return runCommandHandler(ctx, ematches[0], w, m)
 	}
 	if len(matches) == 1 {
-		return RunCommandHandler(ctx, matches[0], w, m)
+		return runCommandHandler(ctx, matches[0], w, m)
 	}
 	return fmt.Errorf("ambigious command, %s: %s", m.args[0], strings.Join(matchesns, ", "))
 }
@@ -511,38 +511,59 @@ func glogPanic() {
 	}
 }
 
-// RunHandlers process messages from adapter a, and passes them
+// Loop processes messages from adapters a and as, and passes them
 // to the provided handler h. ctx can be used to stop the processesing
-// and  inform any running handlers. WARNING: probably not to be used
-// directly and may be made private in the future.
-func RunHandlers(ctx context.Context, h Handler, a Adapter) {
+// and inform any running handlers. WebHookHandlers and BackgroundHandlers
+// will be configured to use a as the default handler
+func Loop(ctx context.Context, h Handler, a Adapter, as ...Adapter) {
 	an := fmt.Sprintf("%T", a)
 	if bh, ok := h.(BackgroundHandler); ok {
-		RunBackgroundHandler(ctx, bh, newResponseWriter(a, Message{}, an))
+		runBackgroundHandler(ctx, bh, newResponseWriter(a, Message{}, an))
 	}
 
 	if wh, ok := h.(WebHookHandler); ok {
 		wh.SetAdapter(a)
 	}
 
+	type smrw struct {
+		w ResponseWriter
+		m *Message
+	}
+	mrws := make(chan smrw)
+
+	for _, a := range append(as, a) {
+		go func(a Adapter) {
+			an := fmt.Sprintf("%T", a)
+			for {
+				select {
+				case m := <-a.Receive():
+					rw := newResponseWriter(a, *m, an)
+					mrws <- smrw{rw, m}
+				case <-ctx.Done():
+					return
+				}
+			}
+		}(a)
+	}
+
 	for {
 		select {
-		case m := <-a.Receive():
+		case mrw := <-mrws:
 			if glog.V(3) {
-				glog.Infof("Message: %#v", *m)
+				glog.Infof("Message: %#v", *mrw.m)
 			}
-			messagesRx.WithLabelValues(an, m.Channel, m.From).Inc()
+			messagesRx.WithLabelValues(an, mrw.m.Channel, mrw.m.From).Inc()
 
 			if rh, ok := h.(RawHandler); ok {
-				go RunRawHandler(ctx, rh, newResponseWriter(a, *m, an), m)
+				go runRawHandler(ctx, rh, mrw.w, mrw.m)
 			}
 
 			if hh, ok := h.(HearsHandler); ok {
-				go RunHearsHandler(ctx, hh, newResponseWriter(a, *m, an), m)
+				go runHearsHandler(ctx, hh, mrw.w, mrw.m)
 			}
 
 			if ch, ok := h.(CommandHandler); ok {
-				go RunCommandHandler(ctx, ch, newResponseWriter(a, *m, an), m)
+				go runCommandHandler(ctx, ch, mrw.w, mrw.m)
 			}
 		case <-ctx.Done():
 			return
@@ -550,10 +571,9 @@ func RunHandlers(ctx context.Context, h Handler, a Adapter) {
 	}
 }
 
-// RunBackgroundHandler starts the provided BackgroundHandler in a new
-// go routine. WARNING: probably not to be used
-// directly and may be made private in the future.
-func RunBackgroundHandler(ctx context.Context, h BackgroundHandler, w ResponseWriter) {
+// runBackgroundHandler starts the provided BackgroundHandler in a new
+// go routine.
+func runBackgroundHandler(ctx context.Context, h BackgroundHandler, w ResponseWriter) {
 	glog.Infof("Starting background %v\n", h)
 	go func(ctx context.Context, bh BackgroundHandler) {
 		defer glogPanic()
@@ -561,19 +581,16 @@ func RunBackgroundHandler(ctx context.Context, h BackgroundHandler, w ResponseWr
 	}(ctx, h)
 }
 
-// RunRawHandler passing message m to the provided handler.  go routine.
-// WARNING: probably not to be used directly and may be made private in the
-// future.
-func RunRawHandler(ctx context.Context, h RawHandler, w ResponseWriter, m *Message) bool {
+// runRawHandler passing message m to the provided handler.  go routine.
+func runRawHandler(ctx context.Context, h RawHandler, w ResponseWriter, m *Message) bool {
 	defer glogPanic()
 	h.ProcessMessage(ctx, w, m)
 
 	return false
 }
 
-// RunHearsHandler will match the go routine. WARNING: probably not to be used
-// directly and may be made private in the future.
-func RunHearsHandler(ctx context.Context, h HearsHandler, w ResponseWriter, m *Message) bool {
+// runHearsHandler will match the go routine.
+func runHearsHandler(ctx context.Context, h HearsHandler, w ResponseWriter, m *Message) bool {
 	defer glogPanic()
 
 	if mtchs := h.Hears().FindAllStringSubmatch(m.Text, -1); mtchs != nil {
@@ -583,10 +600,9 @@ func RunHearsHandler(ctx context.Context, h HearsHandler, w ResponseWriter, m *M
 	return false
 }
 
-// RunCommandHandler initializes the message m as a command message and passed
-// it to the given handler.WARNING: probably not to be used directly and may be
-// made private in the future.
-func RunCommandHandler(ctx context.Context, h CommandHandler, w ResponseWriter, m *Message) error {
+// runCommandHandler initializes the message m as a command message and passed
+// it to the given handler.
+func runCommandHandler(ctx context.Context, h CommandHandler, w ResponseWriter, m *Message) error {
 	if h != nil && glog.V(2) {
 		glog.Infof("RUNNING %v %v\n", h, m.args)
 	}

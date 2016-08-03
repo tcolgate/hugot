@@ -26,11 +26,11 @@ type key int
 // ListenAndServe runs the handler h, passing all messages to/from
 // the provided adapter. The context may be used to gracefully shut
 // down the server.
-func ListenAndServe(ctx context.Context, a Adapter, h Handler) {
+func ListenAndServe(ctx context.Context, h Handler, a Adapter, as ...Adapter) {
 	if h == nil {
 		h = DefaultMux
 	}
 
 	ctx = NewAdapterContext(ctx, a)
-	RunHandlers(ctx, h, a)
+	Loop(ctx, h, a, as...)
 }

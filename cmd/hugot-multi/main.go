@@ -20,7 +20,9 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"log"
+	"net"
 	"net/http"
 	"net/url"
 	"time"
@@ -31,6 +33,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	bot "github.com/tcolgate/hugot"
 	"github.com/tcolgate/hugot/adapters/shell"
+	"github.com/tcolgate/hugot/adapters/ssh"
+	cssh "golang.org/x/crypto/ssh"
 
 	"github.com/tcolgate/hugot"
 
@@ -59,10 +63,46 @@ func main() {
 	flag.Parse()
 
 	ctx, cancel := context.WithCancel(context.Background())
-	a, err := shell.New(*nick)
+	a1, err := shell.New(*nick)
 	if err != nil {
 		glog.Fatal(err)
 	}
+
+	// An SSH server is represented by a ServerConfig, which holds
+	// certificate details and handles authentication of ServerConns.
+	config := &cssh.ServerConfig{
+		PublicKeyCallback: func(conn cssh.ConnMetadata, pkey cssh.PublicKey) (*cssh.Permissions, error) {
+			/*
+				pkey, err := models.SearchPublicKeyByContent(strings.TrimSpace(string(ssh.MarshalAuthorizedKey(key))))
+				if err != nil {
+					// handle error
+					return nil, err
+				}
+				return &cssh.Permissions{Extensions: map[string]string{"key-id": com.ToStr(pkey.ID)}}, nil
+			*/
+			return nil, nil
+		}}
+
+	privateBytes, err := ioutil.ReadFile("host_rsa_key")
+	if err != nil {
+		panic("Failed to load private key")
+	}
+
+	private, err := cssh.ParsePrivateKey(privateBytes)
+	if err != nil {
+		panic("Failed to parse private key")
+	}
+
+	config.AddHostKey(private)
+
+	// Once a ServerConfig has been configured, connections can be
+	// accepted.
+	listener, err := net.Listen("tcp", "0.0.0.0:2022")
+	if err != nil {
+		panic("failed to listen for connection")
+	}
+
+	a2 := ssh.New(*nick, listener, config)
 
 	hugot.Handle(ping.New())
 	hugot.Handle(uptime.New())
@@ -76,11 +116,11 @@ func main() {
 	u, _ := url.Parse("http://localhost:8080")
 	hugot.SetURL(u)
 
-	go bot.ListenAndServe(ctx, nil, a)
+	go bot.ListenAndServe(ctx, nil, a1, a2)
 	http.Handle("/metrics", prometheus.Handler())
 	go http.ListenAndServe(":8081", nil)
 
-	a.Main()
+	a1.Main()
 
 	cancel()
 

@@ -127,7 +127,7 @@ func (mx *Mux) StartBackground(ctx context.Context, w ResponseWriter) {
 	defer mx.Unlock()
 
 	for _, h := range mx.bghndlrs {
-		go RunBackgroundHandler(ctx, h, w)
+		go runBackgroundHandler(ctx, h, w)
 	}
 }
 
@@ -170,7 +170,7 @@ func (mx *Mux) ProcessMessage(ctx context.Context, w ResponseWriter, m *Message)
 	for _, hhs := range mx.hears {
 		for _, hh := range hhs {
 			mc := *m
-			if RunHearsHandler(ctx, hh, w, &mc) {
+			if runHearsHandler(ctx, hh, w, &mc) {
 				err = nil
 			}
 		}

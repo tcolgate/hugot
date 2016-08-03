@@ -60,5 +60,5 @@ func main() {
 	http.Handle("/metrics", prometheus.Handler())
 	go http.ListenAndServe(":8081", nil)
 
-	hugot.ListenAndServe(context.Background(), a, nil)
+	hugot.ListenAndServe(context.Background(), nil, a)
 }
