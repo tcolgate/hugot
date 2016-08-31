@@ -127,7 +127,7 @@ func (mx *Mux) StartBackground(ctx context.Context, w ResponseWriter) {
 	defer mx.Unlock()
 
 	for _, h := range mx.bghndlrs {
-		go runBackgroundHandler(ctx, h, w)
+		go runBackgroundHandler(ctx, h, w.Copy())
 	}
 }
 

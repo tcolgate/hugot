@@ -99,6 +99,8 @@ type ResponseWriter interface {
 	SetChannel(c string) // Forces messages to a certain channel
 	SetTo(to string)     // Forces messages to a certain user
 	SetSender(a Sender)  // Forces messages to a different sender or adapter
+
+	Copy() ResponseWriter // Returns a copy of this response writer
 }
 
 type responseWriter struct {
@@ -151,6 +153,11 @@ func (w *responseWriter) SetSender(s Sender) {
 func (w *responseWriter) Send(ctx context.Context, m *Message) {
 	messagesTx.WithLabelValues(w.an, m.Channel, m.From).Inc()
 	w.snd.Send(ctx, m)
+}
+
+// Copy returns a copy of this response writer
+func (w *responseWriter) Copy() ResponseWriter {
+	return &responseWriter{w.snd, Message{}, w.an}
 }
 
 // nullSender is a sender which discards anything sent to it, this is
