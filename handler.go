@@ -423,7 +423,7 @@ func defaultCommandHandler(ctx context.Context, w ResponseWriter, m *Message) er
 
 // NewCommandHandler wraps the given function f as a CommandHandler with the
 // provided name and description.
-func NewCommandHandler(name, desc string, f CommandFunc, cs *CommandSet) CommandHandler {
+func NewCommandHandler(name, desc string, f CommandFunc, cs *CommandSet) CommandWithSubsHandler {
 	if f == nil {
 		f = defaultCommandHandler
 	}
