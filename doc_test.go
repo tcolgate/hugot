@@ -21,8 +21,9 @@ import (
 	"flag"
 	"os"
 
-	"github.com/golang/glog"
 	"context"
+
+	"github.com/golang/glog"
 
 	"github.com/tcolgate/hugot"
 
@@ -58,5 +59,5 @@ func Example() {
 	// This will start read , process and forward
 	// messages from the adapter into the default
 	// handler mux./
-	hugot.ListenAndServe(ctx, a, nil)
+	hugot.ListenAndServe(ctx, nil, a)
 }
