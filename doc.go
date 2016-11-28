@@ -27,8 +27,10 @@
 // Adapters are used to integrate with external chat systems. Currently
 // the following adapters exist:
 //   slack - github.com/tcolgate/hugot/adapters/slack - for https://slack.com/
+//   mattermost - github.com/tcolgate/hugot/adapters/mattermost - for https://www.mattermost.org/
 //   irc - github.com/tcolgate/hugot/adapters/irc - simple irc adapter
 //   shell - github.com/tcolgate/hugot/adapters/shell - simple readline based adapter
+//   ssh - github.com/tcolgate/hugot/adapters/ssh - Toy implementation of unauth'd ssh interface
 //
 // Examples of using these adapters can be found in github.com/tcolgate/hugot/cmd
 //
