@@ -165,29 +165,31 @@ func (s *mma) Send(ctx context.Context, m *hugot.Message) {
 
 func (s *mma) Receive() <-chan *hugot.Message {
 	out := make(chan *hugot.Message, 1)
-	go func() {
-		for {
-			select {
-			case m := <-s.ws.EventChannel:
-				switch m.Event {
-				case mm.WEBSOCKET_EVENT_POSTED:
-					p := mm.PostFromJson(strings.NewReader(m.Data["post"].(string)))
-					if p == nil || p.UserId == s.user.Id {
-						continue
-					}
-					out <- s.mmMsgToHugot(m)
-				default:
+	for {
+		select {
+		case m := <-s.ws.EventChannel:
+			if glog.V(3) {
+				glog.Infof("mattermost event: %#v\n", m)
+			}
+			switch m.Event {
+			case mm.WEBSOCKET_EVENT_POSTED:
+				p := mm.PostFromJson(strings.NewReader(m.Data["post"].(string)))
+				if p == nil || p.UserId == s.user.Id {
+					continue
 				}
+				out <- s.mmMsgToHugot(m)
+				return out
+			default:
+				glog.Infof("unknown event: %#v\n", m)
 			}
 		}
-	}()
-	return out
+	}
 }
 
 func (s *mma) mmMsgToHugot(me *mm.WebSocketEvent) *hugot.Message {
 	var private, tobot bool
 	if glog.V(3) {
-		glog.Infof("message: %#v\n", *me)
+		glog.Infof("mattermost message: %#v\n", *me)
 	}
 
 	p := mm.PostFromJson(strings.NewReader(me.Data["post"].(string)))
@@ -202,6 +204,7 @@ func (s *mma) mmMsgToHugot(me *mm.WebSocketEvent) *hugot.Message {
 
 	ct, ok := me.Data["channel_type"]
 	if !ok {
+		glog.Infoln("channel_type not set")
 		return nil
 	}
 
@@ -237,6 +240,10 @@ func (s *mma) mmMsgToHugot(me *mm.WebSocketEvent) *hugot.Message {
 		Private: private,
 		ToBot:   tobot,
 		Text:    p.Message,
+	}
+
+	if glog.V(3) {
+		glog.Infof("hugot message: %#v\n", m)
 	}
 
 	return &m
