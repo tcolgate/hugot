@@ -21,6 +21,7 @@ package mm
 
 import (
 	"fmt"
+	"net/url"
 	"regexp"
 	"strings"
 
@@ -68,8 +69,8 @@ type mma struct {
 }
 
 // New creates a new adapter that communicates with Mattermost
-func New(url, team, email, password string) (hugot.Adapter, error) {
-	c := mma{client: mm.NewClient(url)}
+func New(apiurl, team, email, password string) (hugot.Adapter, error) {
+	c := mma{client: mm.NewClient(apiurl)}
 
 	lr, err := c.client.Login(email, password)
 	if err != nil {
@@ -99,7 +100,10 @@ func New(url, team, email, password string) (hugot.Adapter, error) {
 
 	pat := fmt.Sprintf("^@%s[:,]? (.*)", c.user.Username)
 	c.dirPat = regexp.MustCompile(pat)
-	c.ws, err = mm.NewWebSocketClient("ws://localhost:8065", c.client.AuthToken)
+
+	wsurl, _ := url.Parse(apiurl)
+	wsurl.Scheme = "ws"
+	c.ws, err = mm.NewWebSocketClient(wsurl.String(), c.client.AuthToken)
 	if err != nil {
 		return nil, err
 	}
