@@ -98,7 +98,7 @@ func New(token, nick string) (hugot.Adapter, error) {
 		return nil, errors.New("Could not locate bot's user ID")
 	}
 
-	s.dirPat = regexp.MustCompile(fmt.Sprintf("(?m)^(!|(@?%s|<@%s>)[:, ]?)(.*)", s.nick, s.id))
+	s.dirPat = regexp.MustCompile(fmt.Sprintf("(?m)^(!|(@?%s|<@%s>)[:,]? )(.*)", s.nick, s.id))
 
 	// We use RTM to recieve, but the regular slack API to send
 	// RTM does not support formatted message parsing
