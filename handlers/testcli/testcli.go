@@ -40,11 +40,23 @@ func New() hugot.CommandHandler {
 }
 
 func helloCommand(ctx context.Context, w hugot.ResponseWriter, m *hugot.Message) error {
+	a := m.Bool("a", false, "use an attachment")
 	if err := m.Parse(); err != nil {
 		return err
 	}
 
-	fmt.Print(w, "Hello")
+	if !*a {
+		fmt.Print(w, "Hello")
+		return nil
+	}
+	r := m.Reply("")
+	r.Attachments = []hugot.Attachment{
+		{
+			Text:  "Hello",
+			Color: "good",
+		},
+	}
+	w.Send(ctx, r)
 	return nil
 }
 

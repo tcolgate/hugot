@@ -97,7 +97,6 @@ func New(url, team, email, password string) (hugot.Adapter, error) {
 
 	c.client.SetTeamId(c.team.Id)
 
-	glog.Infof("%#v\n", c.user)
 	pat := fmt.Sprintf("^@%s[:,]? (.*)", c.user.Username)
 	c.dirPat = regexp.MustCompile(pat)
 	c.ws, err = mm.NewWebSocketClient("ws://localhost:8065", c.client.AuthToken)
@@ -111,65 +110,53 @@ func New(url, team, email, password string) (hugot.Adapter, error) {
 }
 
 func (s *mma) Send(ctx context.Context, m *hugot.Message) {
-	glog.Infof("send: %#v\n", *m)
-
-	/*
-		if (m.Text != "" || len(m.Attachments) > 0) && m.Channel != "" {
-			var err error
-			chanout := ""
-			c, err := s.GetChannel(m.Channel)
-			if err != nil {
-				glog.Errorf("unresolvable channel, %#v", m.Channel)
-				chanout = m.Channel
-			} else {
-				chanout = c.Name
-			}
-			if glog.V(3) {
-				glog.Infof("sending, %#v to %#v", *m, chanout)
-			}
-
-			p := client.NewPostMessageParameters()
-			p.AsUser = false
-			attchs := []client.Attachment{}
-			for _, a := range m.Attachments {
-				attchs = append(attchs, client.Attachment(a))
-			}
-			p.Attachments = attchs
-			p.Username = s.nick
-			p.IconURL = s.icon // permit overriding this
-			_, _, err = s.api.PostMessage(m.Channel, m.Text, p)
-			if err != nil {
-				glog.Errorf("error sending, %#v", err.Error())
-			}
-		} else {
-			glog.Infoln("Attempt to send empty message")
-		}
-	*/
 	post := &mm.Post{}
-
 	post.ChannelId = m.Channel
-	post.Type = mm.POST_SLACK_ATTACHMENT
 	post.Message = m.Text
-	if post.Props == nil {
+	var attchs []map[string]interface{}
+	for _, a := range m.Attachments {
+		switch a.Color {
+		case "good":
+			a.Color = "#00ff00"
+		case "warning":
+			a.Color = "#ff1010"
+		case "danger":
+			a.Color = "#ff0000"
+		}
+		if a.Fallback == "" {
+			a.Fallback = a.Text
+		}
+		flds := []map[string]interface{}{}
+		for _, f := range a.Fields {
+			flds = append(flds, map[string]interface{}{
+				"title": f.Title,
+				"value": f.Value,
+				"short": f.Short,
+			})
+		}
+		attchs = append(attchs,
+			map[string]interface{}{
+				"fallback":       a.Fallback,
+				"pretext":        a.Pretext,
+				"text":           a.Text,
+				"title":          a.Title,
+				"title_link":     a.TitleLink,
+				"image_url":      a.ImageURL,
+				"thumb_url":      a.ThumbURL,
+				"color":          a.Color,
+				"author_name":    a.AuthorName,
+				"author_subname": a.AuthorSubname,
+				"author_link":    a.AuthorLink,
+				"author_icon":    a.AuthorIcon,
+				"fields":         flds,
+			})
+	}
+
+	if len(attchs) > 0 {
+		post.Type = mm.POST_SLACK_ATTACHMENT
 		post.Props = make(map[string]interface{})
+		post.Props["attachments"] = attchs
 	}
-	post.Props["attachments"] = []map[string]interface{}{
-		{
-			"fallback": "hello",
-			"pretext":  "hello",
-			"text":     "hello",
-			"title":    "hello title",
-			"color":    "#00ff00",
-			"fields": []map[string]interface{}{
-				{
-					"title": "stuff title",
-					"value": "stuff value",
-					"short": false,
-				},
-			},
-		},
-	}
-	glog.Infoln("JSON: ", post.ToJson())
 
 	if _, err := s.client.CreatePost(post); err != nil {
 		glog.Infoln(err.Error())
@@ -186,13 +173,10 @@ func (s *mma) Receive() <-chan *hugot.Message {
 				case mm.WEBSOCKET_EVENT_POSTED:
 					p := mm.PostFromJson(strings.NewReader(m.Data["post"].(string)))
 					if p == nil || p.UserId == s.user.Id {
-						glog.Infof("Ignore post from self\n", p)
 						continue
 					}
-					glog.Infof("Post: %#v\n", p)
 					out <- s.mmMsgToHugot(m)
 				default:
-					glog.Infof("Event: %#v\n", m)
 				}
 			}
 		}
@@ -240,7 +224,6 @@ func (s *mma) mmMsgToHugot(me *mm.WebSocketEvent) *hugot.Message {
 	// Check if the message was sent @bot, if so, set it as to us
 	// and strip the leading politeness
 	dirMatch := s.dirPat.FindStringSubmatch(p.Message)
-	glog.Infof("matched: %#v", dirMatch)
 	if len(dirMatch) > 1 && len(dirMatch[1]) > 0 {
 		tobot = true
 		p.Message = strings.Trim(dirMatch[1], " ")
@@ -254,13 +237,6 @@ func (s *mma) mmMsgToHugot(me *mm.WebSocketEvent) *hugot.Message {
 		Private: private,
 		ToBot:   tobot,
 		Text:    p.Message,
-	}
-
-	glog.Infof("ToBot ", m.ToBot)
-	if m.Private {
-		glog.Infof("Handling private message from %v: %v", m.From, m.Text)
-	} else {
-		glog.Infof("Handling message in %v from %v: %v", m.Channel, m.From, m.Text)
 	}
 
 	return &m
