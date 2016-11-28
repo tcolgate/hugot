@@ -148,18 +148,29 @@ func (s *mma) Send(ctx context.Context, m *hugot.Message) {
 	post := &mm.Post{}
 
 	post.ChannelId = m.Channel
+	post.Type = mm.POST_SLACK_ATTACHMENT
 	post.Message = m.Text
 	if post.Props == nil {
 		post.Props = make(map[string]interface{})
 	}
 	post.Props["attachments"] = []map[string]interface{}{
 		{
-			"pretext": "hello",
-			"text":    "hello",
-			"title":   "hello title",
-			"color":   "#00ff00",
+			"fallback": "hello",
+			"pretext":  "hello",
+			"text":     "hello",
+			"title":    "hello title",
+			"color":    "#00ff00",
+			"fields": []map[string]interface{}{
+				{
+					"title": "stuff title",
+					"value": "stuff value",
+					"short": false,
+				},
+			},
 		},
 	}
+	glog.Infoln("JSON: ", post.ToJson())
+
 	if _, err := s.client.CreatePost(post); err != nil {
 		glog.Infoln(err.Error())
 	}
