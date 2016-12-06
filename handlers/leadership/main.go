@@ -24,7 +24,10 @@ type leaderHndler struct {
 	isLeader bool
 }
 
-func New(next hugot.RawHandler, store store.Store, key, name string) *leaderHndler {
+// New creates a new handler that uses an external consistent store to
+// elect a leader among competing bots. Until the handler is elected leader,
+// all messages are ignored. Messaes arriving via WebHooks will still arrive.
+func New(next hugot.RawHandler, store store.Store, key, name string) hugot.RawHandler {
 	lh := &leaderHndler{
 		next,
 		store,
