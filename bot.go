@@ -24,10 +24,6 @@ import (
 	"github.com/golang/glog"
 )
 
-// key is a our context key type
-
-type key int
-
 // ListenAndServe runs the handler h, passing all messages to/from
 // the provided adapter. The context may be used to gracefully shut
 // down the server.
