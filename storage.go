@@ -1,55 +1,46 @@
 package hugot
 
-import (
-	"strings"
-
-	"github.com/docker/libkv/store"
-)
-
+// Storer is an interface describing our KV store
+// requirements
 type Storer interface {
-	Get(key string) (*store.KVPair, error)
-	Put(key string, value []byte, options *store.WriteOptions) error
-	Delete(key string) error
+	Get(key []byte) ([]byte, bool, error)
+	List(key []byte) ([][]byte, error)
+	Set(key []byte, value []byte) error
+	Unset(key []byte) error
 }
 
-type prefixStore struct {
-	pfx  string
+// PrefixStore wraps a Storer, and transparenttly
+// appends and removes a prefix
+type PrefixStore struct {
+	pfx  []byte
 	base Storer
 }
 
-func (p prefixStore) Get(key string) (*store.KVPair, error) {
-	res, err := p.base.Get(prepend(key, p.pfx))
-	if res != nil {
-		res.Key = strip(res.Key, p.pfx)
-	}
-	return res, err
-}
-
-func (p prefixStore) Put(key string, value []byte, options *store.WriteOptions) error {
-	return p.base.Put(prepend(key, p.pfx), value, options)
-}
-
-func (p prefixStore) Delete(key string) error {
-	return p.base.Delete(prepend(key, p.pfx))
-}
-
-func newPrefixedStore(s Storer, pfx string) prefixStore {
-	return prefixStore{
-		pfx:  pfx,
+// NewPrefixedStore creates a store than preprends your
+// provided prefix to store keys (with a # separator)
+func NewPrefixedStore(pfx []byte, s Storer) PrefixStore {
+	return PrefixStore{
+		pfx:  append(pfx, []byte("#")...),
 		base: s,
 	}
 }
 
-func prepend(s, pfx string) string {
-	ks := store.SplitKey(s)
-	ks = append([]string{pfx}, ks...)
-	return "/" + strings.Join(ks, "/")
+// Get retrieves a key from the store.
+func (p PrefixStore) Get(key []byte) ([]byte, bool, error) {
+	return p.base.Get(append(p.pfx, key...))
 }
 
-func strip(s, pfx string) string {
-	ks := store.SplitKey(s)
-	if len(ks) > 1 && ks[0] == pfx {
-		ks = ks[1:]
-	}
-	return "/" + strings.Join(ks, "/")
+// List lists all the keys with the given prefix
+func (p PrefixStore) List(key []byte) ([][]byte, error) {
+	return p.base.List(append(p.pfx, key...))
+}
+
+// Set sets  a key in the store.
+func (p PrefixStore) Set(key []byte, value []byte) error {
+	return p.base.Set(append(p.pfx, key...), value)
+}
+
+// Unset removes a key from the store
+func (p PrefixStore) Unset(key []byte) error {
+	return p.base.Unset(append(p.pfx, key...))
 }

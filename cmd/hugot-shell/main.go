@@ -35,10 +35,9 @@ import (
 	"github.com/tcolgate/hugot"
 
 	// Add some handlers
-	"github.com/tcolgate/hugot/handlers/ping"
+
 	"github.com/tcolgate/hugot/handlers/tableflip"
 	"github.com/tcolgate/hugot/handlers/testcli"
-	"github.com/tcolgate/hugot/handlers/testweb"
 	"github.com/tcolgate/hugot/handlers/uptime"
 )
 
@@ -64,11 +63,13 @@ func main() {
 		glog.Fatal(err)
 	}
 
-	hugot.Handle(ping.New())
+	//	hugot.Handle(ping.New())
+	//	hugot.Handle(testweb.New())
+	//	hugot.Handle(alias.New(hugot.DefaultMux, nil))
+
+	hugot.Handle(tableflip.New())
 	hugot.Handle(uptime.New())
 	hugot.Handle(testcli.New())
-	hugot.Handle(tableflip.New())
-	hugot.Handle(testweb.New())
 
 	hugot.HandleBackground(hugot.NewBackgroundHandler("test bg", "testing bg", bgHandler))
 	hugot.HandleHTTP(hugot.NewWebHookHandler("test", "test http", httpHandler))

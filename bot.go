@@ -17,7 +17,12 @@
 
 package hugot
 
-import "context"
+import (
+	"context"
+	"fmt"
+
+	"github.com/golang/glog"
+)
 
 // key is a our context key type
 
@@ -32,5 +37,49 @@ func ListenAndServe(ctx context.Context, h Handler, a Adapter, as ...Adapter) {
 	}
 
 	ctx = NewAdapterContext(ctx, a)
-	Loop(ctx, h, a, as...)
+
+	an := fmt.Sprintf("%T", a)
+	if bh, ok := h.(BackgroundHandler); ok {
+		runBackgroundHandler(ctx, bh, newResponseWriter(a, Message{}, an))
+	}
+
+	if wh, ok := h.(WebHookHandler); ok {
+		wh.SetAdapter(a)
+	}
+
+	type smrw struct {
+		w ResponseWriter
+		m *Message
+	}
+	mrws := make(chan smrw)
+
+	for _, a := range append(as, a) {
+		go func(a Adapter) {
+			an := fmt.Sprintf("%T", a)
+			for {
+				select {
+				case m := <-a.Receive():
+					rw := newResponseWriter(a, *m, an)
+					mrws <- smrw{rw, m}
+				case <-ctx.Done():
+					return
+				}
+			}
+		}(a)
+	}
+
+	for {
+		select {
+		case mrw := <-mrws:
+			if glog.V(3) {
+				glog.Infof("Message: %#v", *mrw.m)
+			}
+			messagesRx.WithLabelValues(an, mrw.m.Channel, mrw.m.From).Inc()
+
+			go h.ProcessMessage(ctx, mrw.w, mrw.m)
+
+		case <-ctx.Done():
+			return
+		}
+	}
 }

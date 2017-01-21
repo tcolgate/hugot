@@ -33,27 +33,24 @@ import (
 // From Will P
 
 type tableflip struct {
+	hugot.Handler
 }
 
-func New() *tableflip {
-	return &tableflip{}
-}
-
-func (*tableflip) Describe() (string, string) {
-	return "tableflip", "stress reliever, just say the word, watch the tables go flying"
-}
-
-var tableflipRegexp = regexp.MustCompile(`(^| *)tableflip($| *)`)
-
-func (*tableflip) Hears() *regexp.Regexp {
-	return tableflipRegexp
+func New() hugot.HearsHandler {
+	return hugot.NewHearsHandler(
+		"tableflip",
+		"stress reliever, just say the word, watch the tables go flying",
+		tableflipRegexp,
+		heard,
+	)
 }
 
 // We'll be horrid and use some globals
 var flipState bool
 var lastFlip time.Time
+var tableflipRegexp = regexp.MustCompile(`(^| *)tableflip($| *)`)
 
-func (*tableflip) Heard(ctx context.Context, w hugot.ResponseWriter, m *hugot.Message, submatches [][]string) {
+func heard(ctx context.Context, w hugot.ResponseWriter, m *hugot.Message, submatches [][]string) {
 	flip := `(╯°□°）╯︵ ┻━┻`
 	unFlip := `┬━┬ ノ( ゜-゜ノ)`
 	doubleFlip := "┻━┻ ︵¯\\(ツ)/¯ ︵ ┻━┻"

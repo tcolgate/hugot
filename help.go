@@ -12,14 +12,19 @@ import (
 )
 
 type muxHelp struct {
+	CommandHandler
 	p *Mux
 }
 
-func (mx *muxHelp) Describe() (string, string) {
-	return "help", "provides help"
+func newMuxHelp(mx *Mux) *muxHelp {
+	h := &muxHelp{
+		p: mx,
+	}
+	h.CommandHandler = NewCommandHandler("help", "provides help", h.command, nil)
+	return h
 }
 
-func (mx *muxHelp) Command(ctx context.Context, w ResponseWriter, m *Message) error {
+func (mx *muxHelp) command(ctx context.Context, w ResponseWriter, m *Message) error {
 	//capture the command we were called as
 	initcmd := m.args[0]
 	m.Parse()

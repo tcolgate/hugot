@@ -21,7 +21,9 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
+	"strings"
 
+	shellwords "github.com/mattn/go-shellwords"
 	"github.com/nlopes/slack"
 )
 
@@ -44,12 +46,12 @@ type Message struct {
 	Private bool
 	ToBot   bool
 
-	Extra interface{} // Arbitrary storage
-
 	*flag.FlagSet
 
 	args    []string
 	flagOut *bytes.Buffer
+
+	stores map[Scope]Storer
 }
 
 // Attachment represents a rich message attachment and is directly
@@ -73,13 +75,25 @@ func (m *Message) Replyf(s string, is ...interface{}) *Message {
 	return m.Reply(fmt.Sprintf(s, is...))
 }
 
+func (m *Message) Args() []string {
+	if m.args == nil {
+		m.args = strings.Split(m.Text, " ")
+	}
+	return m.args
+}
+
 // Parse process any Args for this message in line with any flags that have
 // been added to the message.
 func (m *Message) Parse() error {
-	if len(m.args) == 0 {
-		return nil
+	var err error
+	if m.args == nil {
+		m.args, err = shellwords.Parse(m.Text)
 	}
-	err := m.FlagSet.Parse(m.args[1:])
-	m.args = m.Args()
+	if err != nil {
+		return ErrBadCLI
+	}
+
+	err = m.FlagSet.Parse(m.args[1:])
+	m.args = m.FlagSet.Args()
 	return err
 }

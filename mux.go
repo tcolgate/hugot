@@ -26,6 +26,7 @@ import (
 	"sync"
 
 	"github.com/golang/glog"
+	"github.com/tcolgate/hugot/storers/memory"
 
 	"context"
 )
@@ -52,14 +53,20 @@ type Mux struct {
 	hears    map[*regexp.Regexp][]HearsHandler // Hearing handlers
 	cmds     *CommandSet                       // Command handlers
 	httpm    *http.ServeMux                    // http Mux
+
+	store Storer
+
+	ah *aliasHandler
 }
+
+type muxOpt func(*Mux)
 
 // DefaultMux is a default Mux instance, http Handlers will be added to
 // http.DefaultServeMux
 var DefaultMux *Mux
 
 // NewMux creates a new Mux.
-func NewMux(name, desc string) *Mux {
+func NewMux(name, desc string, opts ...muxOpt) *Mux {
 	mx := &Mux{
 		name:     name,
 		desc:     desc,
@@ -71,9 +78,27 @@ func NewMux(name, desc string) *Mux {
 		cmds:     NewCommandSet(),
 		httpm:    http.NewServeMux(),
 		burl:     &url.URL{Path: "/" + name},
+		store:    memory.New(),
 	}
-	mx.HandleCommand(&muxHelp{mx})
+
+	for _, opt := range opts {
+		opt(mx)
+	}
+
+	mx.HandleCommand(newMuxHelp(mx))
+
+	//mx.ah = newAliasHandler(NewPrefixedStore([]byte("aliases"), mx.store))
+	//mx.HandleCommand(mx.ah)
+
 	return mx
+}
+
+// WithStore is a Mux option to set the store to be used
+// for managing aliases, and property lookup.
+func WithStore(s Storer) muxOpt {
+	return func(m *Mux) {
+		m.store = s
+	}
 }
 
 // Describe implements the Describe method of Handler for
@@ -170,9 +195,7 @@ func (mx *Mux) ProcessMessage(ctx context.Context, w ResponseWriter, m *Message)
 	for _, hhs := range mx.hears {
 		for _, hh := range hhs {
 			mc := *m
-			if runHearsHandler(ctx, hh, w, &mc) {
-				err = nil
-			}
+			hh.ProcessMessage(ctx, w, &mc)
 		}
 	}
 
