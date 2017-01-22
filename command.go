@@ -280,5 +280,11 @@ func (cs *CommandSet) ProcessMessage(ctx context.Context, w ResponseWriter, m *M
 	m.FlagSet = flag.NewFlagSet(hn, flag.ContinueOnError)
 	m.flagOut = &bytes.Buffer{}
 	m.FlagSet.SetOutput(m.flagOut)
-	return ch.ProcessMessage(ctx, w, m)
+	err = ch.ProcessMessage(ctx, w, m)
+	if err == flag.ErrHelp {
+		fmt.Fprint(w, cmdUsage(ch, hn, nil).Error())
+		return ErrSkipHears
+	}
+
+	return err
 }
