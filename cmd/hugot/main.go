@@ -49,9 +49,9 @@ func main() {
 		glog.Fatal(err)
 	}
 
-	hugot.Handle(ping.New())
-	hugot.Handle(tableflip.New())
-	hugot.Handle(testcli.New())
+	hugot.HandleCommand(ping.New())
+	hugot.HandleCommand(testcli.New())
+	hugot.HandleHears(tableflip.New())
 
 	wh := testweb.New()
 	hugot.HandleHTTP(wh)
