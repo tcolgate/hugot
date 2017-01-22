@@ -40,19 +40,19 @@
 //
 // RawHandlers will execute for every message sent to them.
 //
-// HearsHandlers will execute for any message which matches a given regular
-// expression. They are passed all string sub-matches from any capture groups.
-//
-// Command Handlers act on any direct message. Message are attempted to be
-// processed as a command line. Quoted text is handle as a single argument. The
-// passed message can be used as a flag.FlagSet
-//
 // Background handlers, are started when the bot is started. They do not
 // receive messages but can send them. They are intended to implement long
 // lived background tasks that react to external inputs.
 //
 // WebHook handlers can be used to implement web hooks by adding the bot to a
 // http.ServeMux. A URL is build from the name of the handler.
+//
+// HearsHandlers will execute for any message which matches a given regular
+// expression.
+//
+// Command Handlers act on any direct message. Message are attempted to be
+// processed as a command line. Quoted text is handle as a single argument. The
+// passed message can be used as a flag.FlagSet
 //
 // Mux
 //

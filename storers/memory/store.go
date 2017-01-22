@@ -1,7 +1,7 @@
 package memory
 
 import (
-	"bytes"
+	"strings"
 	"sync"
 )
 
@@ -9,11 +9,11 @@ import (
 // It is safe for concurrent access
 type MemStore struct {
 	sync.RWMutex
-	data map[string][]byte
+	data map[string]string
 }
 
 // Get retries a key from the store
-func (m *MemStore) Get(key []byte) ([]byte, bool, error) {
+func (m *MemStore) Get(key string) (string, bool, error) {
 	m.RLock()
 	defer m.RUnlock()
 
@@ -22,21 +22,21 @@ func (m *MemStore) Get(key []byte) ([]byte, bool, error) {
 }
 
 // List all items under the provided prefix
-func (m *MemStore) List(key []byte) ([][]byte, error) {
+func (m *MemStore) List(key string) ([]string, error) {
 	m.RLock()
 	defer m.RUnlock()
 
-	ks := [][]byte{}
+	ks := []string{}
 	for k := range m.data {
-		if bytes.HasPrefix([]byte(k), key) {
-			ks = append(ks, []byte(k[len(key):]))
+		if strings.HasPrefix(string(k), key) {
+			ks = append(ks, string(k[len(key):]))
 		}
 	}
 	return ks, nil
 }
 
 // Set a key in the store
-func (m *MemStore) Set(key []byte, value []byte) error {
+func (m *MemStore) Set(key string, value string) error {
 	m.Lock()
 	defer m.Unlock()
 
@@ -45,7 +45,7 @@ func (m *MemStore) Set(key []byte, value []byte) error {
 }
 
 // Unset a key in the store
-func (m *MemStore) Unset(key []byte) error {
+func (m *MemStore) Unset(key string) error {
 	m.Lock()
 	defer m.Unlock()
 
@@ -57,6 +57,6 @@ func (m *MemStore) Unset(key []byte) error {
 func New() *MemStore {
 	return &MemStore{
 		sync.RWMutex{},
-		make(map[string][]byte),
+		make(map[string]string),
 	}
 }

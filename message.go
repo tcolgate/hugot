@@ -107,5 +107,5 @@ func (m *Message) Parse() error {
 }
 
 func (m *Message) Properties() PropertyStore {
-	return NewPropertyStore(NewPrefixedStore(m.Store, []byte("props")))
+	return NewPropertyStore(NewPrefixedStore(m.Store, "props"), m)
 }

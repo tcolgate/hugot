@@ -66,7 +66,7 @@ func ListenAndServe(ctx context.Context, h Handler, a Adapter, as ...Adapter) {
 	for {
 		select {
 		case mrw := <-mrws:
-			mrw.m.Store = NewPrefixedStore(DefaultStore, []byte(hn))
+			mrw.m.Store = NewPrefixedStore(DefaultStore, hn)
 			go h.ProcessMessage(ctx, mrw.w, mrw.m)
 
 		case <-ctx.Done():

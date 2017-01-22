@@ -86,7 +86,7 @@ func NewMux(name, desc string, opts ...muxOpt) *Mux {
 
 	mx.HandleCommand(newMuxHelp(mx))
 
-	mx.ah = newAliasHandler(NewPrefixedStore(mx.store, []byte("aliases")))
+	mx.ah = newAliasHandler(NewPrefixedStore(mx.store, "aliases"))
 	mx.HandleCommand(mx.ah)
 
 	return mx
@@ -158,7 +158,7 @@ func (mx *Mux) ProcessMessage(ctx context.Context, w ResponseWriter, m *Message)
 			if hh.Hears().MatchString(m.Text) {
 				nm := m.Copy()
 				hn, _ := hh.Describe()
-				nm.Store = NewPrefixedStore(DefaultStore, []byte(hn))
+				nm.Store = NewPrefixedStore(DefaultStore, hn)
 				err = hh.ProcessMessage(ctx, w, nm)
 			}
 		}
