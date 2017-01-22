@@ -11,9 +11,9 @@ type Adapter struct {
 
 // NewAdapter creates a new Adapter, preloaded with the
 // provided set of messages
-func NewAdapter(msgs ...*hugot.Message) *Adapter {
+func NewAdapter(in chan *hugot.Message, out chan hugot.Message) *Adapter {
 	return &Adapter{
-		&ResponseRecorder{},
-		&MessagePlayer{Messages: msgs},
+		&ResponseRecorder{MessagesOut: out},
+		&MessagePlayer{MessagesIn: in},
 	}
 }

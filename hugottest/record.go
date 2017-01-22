@@ -7,7 +7,7 @@ import (
 )
 
 type ResponseRecorder struct {
-	Messages []hugot.Message
+	MessagesOut chan hugot.Message
 
 	defchan string
 	defto   string
@@ -17,7 +17,7 @@ func (rr *ResponseRecorder) Send(ctx context.Context, m *hugot.Message) {
 	if m.Channel == "" {
 		m.Channel = rr.defchan
 	}
-	rr.Messages = append(rr.Messages, *m)
+	rr.MessagesOut <- *m
 }
 
 func (rr *ResponseRecorder) Write(bs []byte) (int, error) {

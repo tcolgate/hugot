@@ -20,6 +20,9 @@ package hugot
 import (
 	"context"
 	"fmt"
+	"io"
+
+	"golang.org/x/sync/errgroup"
 )
 
 // ListenAndServe runs the handler h, passing all messages to/from
@@ -47,20 +50,28 @@ func ListenAndServe(ctx context.Context, h Handler, a Adapter, as ...Adapter) {
 	}
 	mrws := make(chan smrw)
 
+	g, ctx := errgroup.WithContext(ctx)
+
 	for _, a := range append(as, a) {
-		go func(a Adapter) {
+		a := a
+		g.Go(func() error {
 			an := fmt.Sprintf("%T", a)
 			for {
 				select {
 				case m := <-a.Receive():
+					if m == nil {
+						return io.EOF
+					}
 					rw := newResponseWriter(a, *m, an)
 					mrws <- smrw{rw, m}
 				case <-ctx.Done():
-					return
+					return ctx.Err()
 				}
 			}
-		}(a)
+		})
 	}
+
+	go g.Wait()
 
 	hn, _ := h.Describe()
 	for {
