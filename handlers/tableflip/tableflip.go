@@ -32,16 +32,12 @@ import (
 // y=ｰ( ﾟдﾟ)･∵.
 // From Will P
 
-type tableflip struct {
-	hugot.Handler
-}
-
 func New() hugot.HearsHandler {
 	return hugot.NewHearsHandler(
 		"tableflip",
 		"stress reliever, just say the word, watch the tables go flying",
 		tableflipRegexp,
-		heard,
+		ProcessMessage,
 	)
 }
 
@@ -50,7 +46,7 @@ var flipState bool
 var lastFlip time.Time
 var tableflipRegexp = regexp.MustCompile(`(^| *)tableflip($| *)`)
 
-func heard(ctx context.Context, w hugot.ResponseWriter, m *hugot.Message, submatches [][]string) {
+func ProcessMessage(ctx context.Context, w hugot.ResponseWriter, m *hugot.Message) error {
 	flip := `(╯°□°）╯︵ ┻━┻`
 	unFlip := `┬━┬ ノ( ゜-゜ノ)`
 	doubleFlip := "┻━┻ ︵¯\\(ツ)/¯ ︵ ┻━┻"
@@ -80,9 +76,11 @@ func heard(ctx context.Context, w hugot.ResponseWriter, m *hugot.Message, submat
 			fmt.Fprint(w, flipOff)
 			flipState = false
 		}
-		return
+		return nil
 	}
 
 	flipState = false
 	fmt.Fprint(w, unFlip)
+
+	return nil
 }

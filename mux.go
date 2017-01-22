@@ -43,7 +43,8 @@ type Mux struct {
 	name string
 	desc string
 
-	burl *url.URL
+	burl  *url.URL
+	httpm *http.ServeMux // http Mux
 
 	*sync.RWMutex
 	hndlrs   []Handler                         // All the handlers
@@ -52,11 +53,9 @@ type Mux struct {
 	whhndlrs map[string]WebHookHandler         // WebHooks
 	hears    map[*regexp.Regexp][]HearsHandler // Hearing handlers
 	cmds     *CommandSet                       // Command handlers
-	httpm    *http.ServeMux                    // http Mux
 
 	store Storer
-
-	ah *aliasHandler
+	ah    *aliasHandler
 }
 
 type muxOpt func(*Mux)
@@ -87,8 +86,8 @@ func NewMux(name, desc string, opts ...muxOpt) *Mux {
 
 	mx.HandleCommand(newMuxHelp(mx))
 
-	//mx.ah = newAliasHandler(NewPrefixedStore([]byte("aliases"), mx.store))
-	//mx.HandleCommand(mx.ah)
+	mx.ah = newAliasHandler(NewPrefixedStore(mx.store, []byte("aliases")))
+	mx.HandleCommand(mx.ah)
 
 	return mx
 }
@@ -105,45 +104,6 @@ func WithStore(s Storer) muxOpt {
 // the Mux
 func (mx *Mux) Describe() (string, string) {
 	return mx.name, mx.desc
-}
-
-// URL returns the base URL for the default Mux
-func URL() *url.URL {
-	return DefaultMux.URL()
-}
-
-// URL returns the base URL for this Mux
-func (mx *Mux) URL() *url.URL {
-	mx.RLock()
-	defer mx.RUnlock()
-	return mx.url()
-}
-
-func (mx *Mux) url() *url.URL {
-	return mx.burl
-}
-
-// SetURL sets the base URL for web hooks.
-func SetURL(b *url.URL) {
-	if b.Path != "" {
-		panic(errors.New("Can't set URL with path at the moment, sorry"))
-	}
-	DefaultMux.SetURL(b)
-}
-
-// SetURL sets the base URL for this mux's web hooks.
-func (mx *Mux) SetURL(b *url.URL) {
-	mx.Lock()
-	defer mx.Unlock()
-
-	mx.burl = b
-	for _, h := range mx.whhndlrs {
-		n, _ := h.Describe()
-		p := fmt.Sprintf("%s/%s/%s/", b.Path, mx.name, n)
-		nu := *b
-		nu.Path = p
-		h.SetURL(&nu)
-	}
 }
 
 // StartBackground starts any registered background handlers.
@@ -180,12 +140,13 @@ func (mx *Mux) ProcessMessage(ctx context.Context, w ResponseWriter, m *Message)
 
 	// We run all raw message handlers
 	for _, rh := range mx.rhndlrs {
-		mc := *m
-		go rh.ProcessMessage(ctx, w, &mc)
+		nm := m.Copy()
+		go rh.ProcessMessage(ctx, w, nm)
 	}
 
-	if m.ToBot {
-		err = mx.cmds.NextCommand(ctx, w, m)
+	if m.ToBot && m.Text != "" {
+		nm := m.Copy()
+		err = mx.cmds.ProcessMessage(ctx, w, nm)
 	}
 
 	if err == ErrSkipHears {
@@ -194,61 +155,18 @@ func (mx *Mux) ProcessMessage(ctx context.Context, w ResponseWriter, m *Message)
 
 	for _, hhs := range mx.hears {
 		for _, hh := range hhs {
-			mc := *m
-			hh.ProcessMessage(ctx, w, &mc)
+			if hh.Hears().MatchString(m.Text) {
+				nm := m.Copy()
+				hn, _ := hh.Describe()
+				nm.Store = NewPrefixedStore(DefaultStore, []byte(hn))
+				err = hh.ProcessMessage(ctx, w, nm)
+			}
 		}
 	}
 
 	if err != nil {
 		fmt.Fprintf(w, "error, %s", err.Error())
 	}
-
-	return nil
-}
-
-// Handle adds the provided handler to the DefaultMux
-func Handle(h Handler) error {
-	return DefaultMux.Handle(h)
-}
-
-// Handle adds a generic handler that supports one or more of the handler
-// types. WARNING: This may be removed in the future. Prefer to
-// the specific Add*Handler methods.
-func (mx *Mux) Handle(h Handler) error {
-	var used bool
-	if h, ok := h.(RawHandler); ok {
-		mx.HandleRaw(h)
-		used = true
-	}
-
-	if h, ok := h.(BackgroundHandler); ok {
-		mx.HandleBackground(h)
-		used = true
-	}
-
-	if h, ok := h.(CommandHandler); ok {
-		mx.HandleCommand(h)
-		used = true
-	}
-
-	if h, ok := h.(HearsHandler); ok {
-		mx.HandleHears(h)
-		used = true
-	}
-
-	if h, ok := h.(WebHookHandler); ok {
-		mx.HandleHTTP(h)
-		used = true
-	}
-
-	mx.Lock()
-	defer mx.Unlock()
-
-	if !used {
-		return fmt.Errorf("Don't know how to use %T as a handler", h)
-	}
-
-	mx.hndlrs = append(mx.hndlrs, h)
 
 	return nil
 }
@@ -365,4 +283,43 @@ func (mx *Mux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		glog.Infof("Mux ServeHTTP %s\n", *r)
 	}
 	mx.httpm.ServeHTTP(w, r)
+}
+
+// URL returns the base URL for the default Mux
+func URL() *url.URL {
+	return DefaultMux.URL()
+}
+
+// URL returns the base URL for this Mux
+func (mx *Mux) URL() *url.URL {
+	mx.RLock()
+	defer mx.RUnlock()
+	return mx.url()
+}
+
+func (mx *Mux) url() *url.URL {
+	return mx.burl
+}
+
+// SetURL sets the base URL for web hooks.
+func SetURL(b *url.URL) {
+	if b.Path != "" {
+		panic(errors.New("Can't set URL with path at the moment, sorry"))
+	}
+	DefaultMux.SetURL(b)
+}
+
+// SetURL sets the base URL for this mux's web hooks.
+func (mx *Mux) SetURL(b *url.URL) {
+	mx.Lock()
+	defer mx.Unlock()
+
+	mx.burl = b
+	for _, h := range mx.whhndlrs {
+		n, _ := h.Describe()
+		p := fmt.Sprintf("%s/%s/%s/", b.Path, mx.name, n)
+		nu := *b
+		nu.Path = p
+		h.SetURL(&nu)
+	}
 }

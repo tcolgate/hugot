@@ -83,7 +83,12 @@ func (bch *baseCommandHandler) Command(ctx context.Context, w ResponseWriter, m 
 	if errnc, ok = err.(errNextCommand); !ok {
 		return err
 	}
-	return bch.subs.NextCommand(errnc.ctx, w, m)
+	ch, err := bch.subs.NextCommand(m)
+	if err != nil {
+		return err
+	}
+
+	return ch.ProcessMessage(errnc.ctx, w, m)
 }
 
 func (bch *baseCommandHandler) SubCommands() *CommandSet {
@@ -230,11 +235,11 @@ func (cs *CommandSet) List() ([]string, []string, []CommandHandler) {
 
 // NextCommand picks the next commands to run from this command set based on the content
 // of the message
-func (cs *CommandSet) NextCommand(ctx context.Context, w ResponseWriter, m *Message) error {
+func (cs *CommandSet) NextCommand(m *Message) (CommandHandler, error) {
 	// This is repeated from RunCommandHandler, probably something wrong there
 	if len(m.Args()) == 0 {
 		cmds, _, _ := cs.List()
-		return fmt.Errorf("required sub-command missing: %s", strings.Join(cmds, ", "))
+		return nil, fmt.Errorf("required sub-command missing: %s", strings.Join(cmds, ", "))
 	}
 
 	matches := []CommandHandler{}
@@ -249,17 +254,31 @@ func (cs *CommandSet) NextCommand(ctx context.Context, w ResponseWriter, m *Mess
 			ematches = append(ematches, cmd)
 		}
 	}
-	if len(matches) == 0 && len(ematches) == 0 {
-		return ErrUnknownCommand
+
+	switch {
+	case len(matches) == 0 && len(ematches) == 0:
+		return nil, ErrUnknownCommand
+	case len(ematches) > 1:
+		return nil, fmt.Errorf("multiple exact matches for %s", m.args[0])
+
+	case len(ematches) == 1:
+		return ematches[0], nil
+	case len(matches) == 1:
+		return matches[0], nil
+
+	default:
+		return nil, fmt.Errorf("ambigious command, %s: %s", m.args[0], strings.Join(matchesns, ", "))
 	}
-	if len(ematches) > 1 {
-		return fmt.Errorf("multiple exact matches for %s", m.args[0])
+}
+
+func (cs *CommandSet) ProcessMessage(ctx context.Context, w ResponseWriter, m *Message) error {
+	ch, err := cs.NextCommand(m)
+	if err != nil {
+		return err
 	}
-	if len(ematches) == 1 {
-		return ematches[0].ProcessMessage(ctx, w, m)
-	}
-	if len(matches) == 1 {
-		return matches[0].ProcessMessage(ctx, w, m)
-	}
-	return fmt.Errorf("ambigious command, %s: %s", m.args[0], strings.Join(matchesns, ", "))
+	hn, _ := ch.Describe()
+	m.FlagSet = flag.NewFlagSet(hn, flag.ContinueOnError)
+	m.flagOut = &bytes.Buffer{}
+	m.FlagSet.SetOutput(m.flagOut)
+	return ch.ProcessMessage(ctx, w, m)
 }

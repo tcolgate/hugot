@@ -10,7 +10,7 @@ import (
 // intended for publishing messages that are not in response to any
 // specific incoming message.
 type BackgroundHandler interface {
-	Handler
+	Describer
 	StartBackground(ctx context.Context, w ResponseWriter)
 }
 
@@ -25,8 +25,9 @@ func runBackgroundHandler(ctx context.Context, h BackgroundHandler, w ResponseWr
 }
 
 type baseBackgroundHandler struct {
-	Handler
-	bhf BackgroundFunc
+	name string
+	desc string
+	bhf  BackgroundFunc
 }
 
 // BackgroundFunc describes the calling convention for Background handlers
@@ -36,9 +37,14 @@ type BackgroundFunc func(ctx context.Context, w ResponseWriter)
 // description provided.
 func NewBackgroundHandler(name, desc string, f BackgroundFunc) BackgroundHandler {
 	return &baseBackgroundHandler{
-		Handler: NewBasicHandler(name, desc, nil),
-		bhf:     f,
+		name: name,
+		desc: desc,
+		bhf:  f,
 	}
+}
+
+func (bbh *baseBackgroundHandler) Describe() (string, string) {
+	return bbh.name, bbh.desc
 }
 
 func (bbh *baseBackgroundHandler) StartBackground(ctx context.Context, w ResponseWriter) {

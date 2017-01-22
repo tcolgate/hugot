@@ -67,9 +67,9 @@ func main() {
 	//	hugot.Handle(testweb.New())
 	//	hugot.Handle(alias.New(hugot.DefaultMux, nil))
 
-	hugot.Handle(tableflip.New())
-	hugot.Handle(uptime.New())
-	hugot.Handle(testcli.New())
+	hugot.HandleHears(tableflip.New())
+	hugot.HandleCommand(uptime.New())
+	hugot.HandleCommand(testcli.New())
 
 	hugot.HandleBackground(hugot.NewBackgroundHandler("test bg", "testing bg", bgHandler))
 	hugot.HandleHTTP(hugot.NewWebHookHandler("test", "test http", httpHandler))

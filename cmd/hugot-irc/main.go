@@ -54,8 +54,8 @@ func main() {
 
 	a := irc.New(c, *ircchan)
 
-	hugot.Handle(ping.New())
-	hugot.Handle(tableflip.New())
+	hugot.HandleCommand(ping.New())
+	hugot.HandleHears(tableflip.New())
 
 	http.Handle("/metrics", prometheus.Handler())
 	go http.ListenAndServe(":8081", nil)

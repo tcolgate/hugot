@@ -97,10 +97,10 @@ func main() {
 
 	a := ssh.New(*nick, listener, config)
 
-	hugot.Handle(ping.New())
-	hugot.Handle(testcli.New())
-	hugot.Handle(tableflip.New())
-	hugot.Handle(testweb.New())
+	hugot.HandleCommand(ping.New())
+	hugot.HandleCommand(testcli.New())
+	hugot.HandleHears(tableflip.New())
+	hugot.HandleHTTP(testweb.New())
 
 	hugot.HandleBackground(hugot.NewBackgroundHandler("test bg", "testing bg", bgHandler))
 	hugot.HandleHTTP(hugot.NewWebHookHandler("test", "test http", httpHandler))
@@ -111,7 +111,7 @@ func main() {
 	http.Handle("/metrics", prometheus.Handler())
 	go http.ListenAndServe(":8081", nil)
 
-	bot.ListenAndServe(ctx, a, nil)
+	bot.ListenAndServe(ctx, nil, a)
 	cancel()
 
 	<-ctx.Done()

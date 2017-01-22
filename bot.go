@@ -20,8 +20,6 @@ package hugot
 import (
 	"context"
 	"fmt"
-
-	"github.com/golang/glog"
 )
 
 // ListenAndServe runs the handler h, passing all messages to/from
@@ -64,14 +62,11 @@ func ListenAndServe(ctx context.Context, h Handler, a Adapter, as ...Adapter) {
 		}(a)
 	}
 
+	hn, _ := h.Describe()
 	for {
 		select {
 		case mrw := <-mrws:
-			if glog.V(3) {
-				glog.Infof("Message: %#v", *mrw.m)
-			}
-			messagesRx.WithLabelValues(an, mrw.m.Channel, mrw.m.From).Inc()
-
+			mrw.m.Store = NewPrefixedStore(DefaultStore, []byte(hn))
 			go h.ProcessMessage(ctx, mrw.w, mrw.m)
 
 		case <-ctx.Done():
@@ -79,3 +74,10 @@ func ListenAndServe(ctx context.Context, h Handler, a Adapter, as ...Adapter) {
 		}
 	}
 }
+
+/*
+	if glog.V(3) {
+		glog.Infof("Message: %#v", *mrw.m)
+	}
+	messagesRx.WithLabelValues(an, mrw.m.Channel, mrw.m.From).Inc()
+*/

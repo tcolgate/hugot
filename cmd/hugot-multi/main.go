@@ -104,11 +104,13 @@ func main() {
 
 	a2 := ssh.New(*nick, listener, config)
 
-	hugot.Handle(ping.New())
-	hugot.Handle(uptime.New())
-	hugot.Handle(testcli.New())
-	hugot.Handle(tableflip.New())
-	hugot.Handle(testweb.New())
+	hugot.HandleCommand(ping.New())
+	hugot.HandleCommand(uptime.New())
+	hugot.HandleCommand(testcli.New())
+
+	hugot.HandleHTTP(testweb.New())
+
+	hugot.HandleHears(tableflip.New())
 
 	hugot.HandleBackground(hugot.NewBackgroundHandler("test bg", "testing bg", bgHandler))
 	hugot.HandleHTTP(hugot.NewWebHookHandler("test", "test http", httpHandler))

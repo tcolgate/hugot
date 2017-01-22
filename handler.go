@@ -35,6 +35,7 @@ type Describer interface {
 	Describe() (string, string)
 }
 
+// HandlerFunc describes a function that can be used as a hugot handler.
 type HandlerFunc func(ctx context.Context, w ResponseWriter, m *Message) error
 
 // Handler is a handler with no actual functionality

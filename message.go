@@ -47,11 +47,19 @@ type Message struct {
 	ToBot   bool
 
 	*flag.FlagSet
-
 	args    []string
 	flagOut *bytes.Buffer
 
-	stores map[Scope]Storer
+	Store Storer
+}
+
+func (m *Message) Copy() *Message {
+	nm := *m
+	nm.args = nil
+	nm.FlagSet = nil
+	nm.flagOut = &bytes.Buffer{}
+	copy(nm.Attachments, m.Attachments)
+	return &nm
 }
 
 // Attachment represents a rich message attachment and is directly
@@ -96,4 +104,8 @@ func (m *Message) Parse() error {
 	err = m.FlagSet.Parse(m.args[1:])
 	m.args = m.FlagSet.Args()
 	return err
+}
+
+func (m *Message) Properties() PropertyStore {
+	return NewPropertyStore(NewPrefixedStore(m.Store, []byte("props")))
 }

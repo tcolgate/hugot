@@ -1,5 +1,7 @@
 package hugot
 
+import "github.com/tcolgate/hugot/storers/memory"
+
 // Storer is an interface describing our KV store
 // requirements
 type Storer interface {
@@ -16,9 +18,13 @@ type PrefixStore struct {
 	base Storer
 }
 
+var (
+	DefaultStore = memory.New()
+)
+
 // NewPrefixedStore creates a store than preprends your
 // provided prefix to store keys (with a # separator)
-func NewPrefixedStore(pfx []byte, s Storer) PrefixStore {
+func NewPrefixedStore(s Storer, pfx []byte) PrefixStore {
 	return PrefixStore{
 		pfx:  append(pfx, []byte("#")...),
 		base: s,

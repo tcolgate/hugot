@@ -38,6 +38,10 @@ func (*ping) Describe() (string, string) {
 	return "ping", "replies Pong to any ping"
 }
 
+func (p *ping) ProcessMessage(ctx context.Context, w hugot.ResponseWriter, m *hugot.Message) error {
+	return p.Command(ctx, w, m)
+}
+
 func (*ping) Command(ctx context.Context, w hugot.ResponseWriter, m *hugot.Message) error {
 	glog.Info("Got ping ", *m)
 	if err := m.Parse(); err != nil {
