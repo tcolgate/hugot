@@ -9,7 +9,11 @@ import (
 func TestAdapter_NewAdapter(t *testing.T) {
 	var a hugot.Adapter
 	expect := "test message"
-	a = NewAdapter([]*hugot.Message{{Text: expect}}...)
+	out := make(chan *hugot.Message, 1)
+	in := make(chan hugot.Message, 1)
+	a = NewAdapter(out, in)
+	out <- &hugot.Message{Text: expect}
+	close(out)
 
 	m := <-a.Receive()
 	if m.Text != expect {

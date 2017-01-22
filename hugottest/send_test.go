@@ -1,11 +1,6 @@
 package hugottest
 
-import (
-	"testing"
-
-	"github.com/tcolgate/hugot"
-)
-
+/*
 func TestMessagePlayer(t *testing.T) {
 	rp := MessagePlayer{
 		Messages: []*hugot.Message{
@@ -23,3 +18,4 @@ func TestMessagePlayer(t *testing.T) {
 		t.Fatalf("expected \"message1\", got %#v", m.Text)
 	}
 }
+*/

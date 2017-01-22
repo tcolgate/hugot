@@ -71,7 +71,9 @@ func ListenAndServe(ctx context.Context, h Handler, a Adapter, as ...Adapter) {
 		})
 	}
 
-	go g.Wait()
+	go func() {
+		g.Wait()
+	}()
 
 	hn, _ := h.Describe()
 	for {

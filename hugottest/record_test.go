@@ -8,30 +8,35 @@ import (
 )
 
 func TestResponseRecorder(t *testing.T) {
-	rr := &ResponseRecorder{}
+	rr := &ResponseRecorder{MessagesOut: make(chan hugot.Message, 1)}
 	rr.SetChannel("test")
 	rr.Write([]byte("Hello World"))
 
-	if len(rr.Messages) != 1 {
-		t.Fatalf("Expected 1 message, got %d", len(rr.Messages))
+	var m hugot.Message
+	select {
+	case m = <-rr.MessagesOut:
+	default:
+		t.Fatalf("Expected to be able to read 1 message, got blocked")
 	}
 
-	if rr.Messages[0].Text != "Hello World" {
-		t.Fatalf("Expected \"Hello World\" message, got %#v", rr.Messages[0].Text)
+	if m.Text != "Hello World" {
+		t.Fatalf("Expected \"Hello World\" message, got %#v", m.Text)
 	}
 
 	rr.SetChannel("test2")
 	rr.Send(context.Background(), &hugot.Message{Text: "another message"})
 
-	if len(rr.Messages) != 2 {
-		t.Fatalf("Expected 2 message, got %d", len(rr.Messages))
+	select {
+	case m = <-rr.MessagesOut:
+	default:
+		t.Fatalf("Expected to be able to read 1 message, got blocked")
 	}
 
-	if rr.Messages[1].Channel != "test2" {
-		t.Fatalf("Expected channel \"test2\" in message, got %#v", rr.Messages[1].Channel)
+	if m.Channel != "test2" {
+		t.Fatalf("Expected channel \"test2\" in message, got %#v", m.Channel)
 	}
 
-	if rr.Messages[1].Text != "another message" {
-		t.Fatalf("Expected \"another message\" message, got %#v", rr.Messages[1].Text)
+	if m.Text != "another message" {
+		t.Fatalf("Expected \"another message\" message, got %#v", m.Text)
 	}
 }
