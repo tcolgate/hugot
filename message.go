@@ -18,12 +18,8 @@
 package hugot
 
 import (
-	"bytes"
-	"flag"
 	"fmt"
-	"strings"
 
-	shellwords "github.com/mattn/go-shellwords"
 	"github.com/nlopes/slack"
 )
 
@@ -46,18 +42,12 @@ type Message struct {
 	Private bool
 	ToBot   bool
 
-	*flag.FlagSet
-	args    []string
-	flagOut *bytes.Buffer
-
 	Store Storer
 }
 
+// Copy is used to provide a deep copy of a message
 func (m *Message) Copy() *Message {
 	nm := *m
-	nm.args = nil
-	nm.FlagSet = nil
-	nm.flagOut = &bytes.Buffer{}
 	copy(nm.Attachments, m.Attachments)
 	return &nm
 }
@@ -83,29 +73,8 @@ func (m *Message) Replyf(s string, is ...interface{}) *Message {
 	return m.Reply(fmt.Sprintf(s, is...))
 }
 
-func (m *Message) Args() []string {
-	if m.args == nil {
-		m.args = strings.Split(m.Text, " ")
-	}
-	return m.args
-}
-
-// Parse process any Args for this message in line with any flags that have
-// been added to the message.
-func (m *Message) Parse() error {
-	var err error
-	if m.args == nil {
-		m.args, err = shellwords.Parse(m.Text)
-	}
-	if err != nil {
-		return ErrBadCLI
-	}
-
-	err = m.FlagSet.Parse(m.args[1:])
-	m.args = m.FlagSet.Args()
-	return err
-}
-
+// Properties are used to associate scoped key/value data
+// with a message
 func (m *Message) Properties() PropertyStore {
 	return NewPropertyStore(NewPrefixedStore(m.Store, "props"), m)
 }
