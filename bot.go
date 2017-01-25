@@ -82,7 +82,11 @@ func ListenAndServe(ctx context.Context, h Handler, a Adapter, as ...Adapter) {
 		select {
 		case mrw := <-mrws:
 			mrw.m.Store = NewPrefixedStore(DefaultStore, hn)
-			go h.ProcessMessage(ctx, mrw.w, mrw.m)
+			go func(smrw) {
+				if err := h.ProcessMessage(ctx, mrw.w, mrw.m); err != nil {
+					mrw.w.Send(ctx, mrw.m.Replyf("%v\n", err))
+				}
+			}(mrw)
 
 		case <-ctx.Done():
 			return

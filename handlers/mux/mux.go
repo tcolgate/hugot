@@ -18,76 +18,72 @@
 package mux
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"regexp"
 	"sync"
+	"text/tabwriter"
 
 	"github.com/golang/glog"
 	"github.com/tcolgate/hugot"
+	"github.com/tcolgate/hugot/handlers/command"
 	"github.com/tcolgate/hugot/handlers/hears"
+	"github.com/tcolgate/hugot/handlers/help"
 	"github.com/tcolgate/hugot/storers/memory"
 
 	"context"
 )
 
+var DefaultMux = New("hugot", "")
+
 func init() {
-	m := New("hugot", "")
-	hugot.DefaultHandler = m
-	http.Handle("/hugot", m)
-	http.Handle("/hugot/", m)
+	http.Handle("/hugot", DefaultMux)
+	http.Handle("/hugot/", DefaultMux)
 
-	//m.HandleCommand(NewMuxHelpHamdler(DefaultMux))
-	//m.ah = NewAliasHandler(NewPrefixedStore(DefaultMux.store, "aliases"))
-	//m.HandleCommand(DefaultMux.ah)
+	hugot.DefaultHandler = DefaultMux
 
-	hugot.DefaultHandler = m
+	DefaultMux.ToBot = command.DefaultSet
 }
 
 // Mux is a Handler that multiplexes messages to a set of Command, Hears, and
 // Raw handlers.
 type Mux struct {
-	name string
-	desc string
+	name  string
+	desc  string
+	store hugot.Storer
 
 	burl  *url.URL
 	httpm *http.ServeMux // http Mux
 
-	*sync.RWMutex
-	hndlrs   []hugot.Handler                  // All the handlers
-	rhndlrs  []hugot.RawHandler               // Raw handlers
-	bghndlrs []hugot.BackgroundHandler        // Long running background handlers
-	whhndlrs map[string]hugot.WebHookHandler  // WebHooks
-	hears    map[*regexp.Regexp][]hears.Hears // Hearing handlers
-	//cmds     *CommandSet                       // Command handlers
-
-	store hugot.Storer
-	//ah    *AliasHandler
+	sync.RWMutex
+	ToBot         hugot.Handler                     // Handles message aimed directly at the bot
+	RawHandlers   []hugot.Handler                   // Raw handlers
+	BGHandlers    []hugot.BackgroundHandler         // Long running background handlers
+	Webhooks      map[string]hugot.WebHookHandler   // WebHooks
+	HearsHandlers map[*regexp.Regexp][]hears.Hearer // Hearing handlers
 }
 
 // Opt functions are used to set options on the Mux
 type Opt func(*Mux)
 
-// DefaultMux is a default Mux instance, http Handlers will be added to
-// http.DefaultServeMux
-var DefaultMux *Mux
-
 // New creates a new Mux.
 func New(name, desc string, opts ...Opt) *Mux {
 	mx := &Mux{
-		name:     name,
-		desc:     desc,
-		RWMutex:  &sync.RWMutex{},
-		rhndlrs:  []hugot.RawHandler{},
-		bghndlrs: []hugot.BackgroundHandler{},
-		whhndlrs: map[string]hugot.WebHookHandler{},
-		hears:    map[*regexp.Regexp][]hears.Hears{},
-		//		cmds:     NewCommandSet(),
-		httpm: http.NewServeMux(),
-		burl:  &url.URL{Path: "/" + name},
-		store: memory.New(),
+		name: name,
+		desc: desc,
+
+		RWMutex:       sync.RWMutex{},
+		RawHandlers:   []hugot.Handler{},
+		BGHandlers:    []hugot.BackgroundHandler{},
+		Webhooks:      map[string]hugot.WebHookHandler{},
+		HearsHandlers: map[*regexp.Regexp][]hears.Hearer{},
+		httpm:         http.NewServeMux(),
+		burl:          &url.URL{Path: "/" + name},
+		store:         memory.New(),
 	}
 
 	for _, opt := range opts {
@@ -116,7 +112,7 @@ func (mx *Mux) StartBackground(ctx context.Context, w hugot.ResponseWriter) {
 	mx.Lock()
 	defer mx.Unlock()
 
-	for _, h := range mx.bghndlrs {
+	for _, h := range mx.BGHandlers {
 		go h.StartBackground(ctx, w.Copy())
 	}
 }
@@ -126,7 +122,7 @@ func (mx *Mux) SetAdapter(a hugot.Adapter) {
 	mx.Lock()
 	defer mx.Unlock()
 
-	for _, wh := range mx.whhndlrs {
+	for _, wh := range mx.Webhooks {
 		wh.SetAdapter(a)
 	}
 }
@@ -144,107 +140,83 @@ func (mx *Mux) ProcessMessage(ctx context.Context, w hugot.ResponseWriter, m *hu
 	var err error
 
 	// We run all raw message handlers
-	for _, rh := range mx.rhndlrs {
+	for _, rh := range mx.RawHandlers {
 		nm := m.Copy()
 		go rh.ProcessMessage(ctx, w, nm)
 	}
 
-	/*
-		if m.ToBot && m.Text != "" {
-			nm := m.Copy()
-			err = mx.cmds.ProcessMessage(ctx, w, nm)
-		}
-	*/
+	if m.ToBot && m.Text != "" {
+		nm := m.Copy()
+		err = mx.ToBot.ProcessMessage(ctx, w, nm)
+	}
 
-	/*
-		if err == ErrSkipHears {
-			return nil
-		}
-	*/
+	if err == command.ErrSkipHears {
+		return nil
+	}
 
-	for _, hhs := range mx.hears {
+	for _, hhs := range mx.HearsHandlers {
 		for _, hh := range hhs {
-			if hh.Hears().MatchString(m.Text) {
+			if ms := hh.Hears().FindAllStringSubmatch(m.Text, -1); ms != nil {
 				nm := m.Copy()
 				hn, _ := hh.Describe()
 				nm.Store = hugot.NewPrefixedStore(hugot.DefaultStore, hn)
-				err = hh.ProcessMessage(ctx, w, nm)
+				err = hh.Heard(ctx, w, nm, ms)
 			}
 		}
 	}
 
-	if err != nil {
-		fmt.Fprintf(w, "error, %s", err.Error())
-	}
-
-	return nil
+	return err
 }
 
-// HandleRaw adds the provided handler to the DefaultMux
-func HandleRaw(h hugot.RawHandler) error {
-	return DefaultMux.HandleRaw(h)
+// Raw adds the provided handler to the DefaultMux
+func Raw(hs ...hugot.Handler) error {
+	return DefaultMux.Raw(hs...)
 }
 
-// HandleRaw adds the provided handler to the Mux. All
+// Raw adds the provided handlers to the Mux. All
 // messages sent to the mux will be forwarded to this handler.
-func (mx *Mux) HandleRaw(h hugot.RawHandler) error {
+func (mx *Mux) Raw(hs ...hugot.Handler) error {
 	mx.Lock()
 	defer mx.Unlock()
 
-	if h, ok := h.(hugot.RawHandler); ok {
-		mx.rhndlrs = append(mx.rhndlrs, h)
-	}
+	mx.RawHandlers = append(mx.RawHandlers, hs...)
 
 	return nil
 }
 
-// HandleBackground adds the provided handler to the DefaultMux
-func HandleBackground(h hugot.BackgroundHandler) error {
-	return DefaultMux.HandleBackground(h)
+// Background adds the provided handler to the DefaultMux
+func Background(hs ...hugot.BackgroundHandler) error {
+	return DefaultMux.Background(hs...)
 }
 
-// HandleBackground adds the provided handler to the Mux. It
+// Background adds the provided handler to the Mux. It
 // will be started with the Mux is started.
-func (mx *Mux) HandleBackground(h hugot.BackgroundHandler) error {
+func (mx *Mux) Background(hs ...hugot.BackgroundHandler) error {
 	mx.Lock()
 	defer mx.Unlock()
-	//name, _ := h.Describe()
 
-	mx.bghndlrs = append(mx.bghndlrs, h)
+	mx.BGHandlers = append(mx.BGHandlers, hs...)
 
 	return nil
 }
 
-/*
-// HandleHears adds the provided handler to the DefaultMux
-func HandleHears(h HearsHandler) error {
-	return DefaultMux.HandleHears(h)
+// Hears adds the provided handler to the DefaultMux
+func Hears(hs ...hears.Hearer) error {
+	return DefaultMux.Hears(hs...)
 }
 
-// HandleHears adds the provided handler to the mux. All
-// messages matching the Hears patterns will be forwarded to
+// Hears adds the provided handler to the mux. all
+// messages matching the hears patterns will be forwarded to
 // the handler.
-func (mx *Mux) HandleHears(h hugot.HearsHandler) error {
+func (mx *Mux) Hears(hs ...hears.Hearer) error {
 	mx.Lock()
 	defer mx.Unlock()
 
-	r := h.Hears()
-	mx.hears[r] = append(mx.hears[r], h)
-
+	for _, h := range hs {
+		r := h.Hears()
+		mx.HearsHandlers[r] = append(mx.HearsHandlers[r], h)
+	}
 	return nil
-}
-
-// HandleCommand adds the provided handler to the DefaultMux
-func HandleCommand(h CommandHandler) {
-	DefaultMux.HandleCommand(h)
-}
-
-// HandleCommand adds the provided handler to the mux.
-func (mx *Mux) HandleCommand(h CommandHandler) {
-	mx.Lock()
-	defer mx.Unlock()
-
-	mx.cmds.AddCommandHandler(h)
 }
 
 type webHookBridge struct {
@@ -257,7 +229,6 @@ func (whb *webHookBridge) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	whb.nh.ServeHTTP(w, r)
 }
-*/
 
 // HandleHTTP adds the provided handler to the DefaultMux
 func HandleHTTP(h hugot.WebHookHandler) {
@@ -279,7 +250,7 @@ func (mx *Mux) HandleHTTP(h hugot.WebHookHandler) {
 	if glog.V(2) {
 		glog.Infof("registering %v at %s, on %v\n", h, p, mx.httpm)
 	}
-	mx.whhndlrs[n] = h
+	mx.Webhooks[n] = h
 
 	mu := mx.url()
 	nu := *mu
@@ -326,11 +297,54 @@ func (mx *Mux) SetURL(b *url.URL) {
 	defer mx.Unlock()
 
 	mx.burl = b
-	for _, h := range mx.whhndlrs {
+	for _, h := range mx.Webhooks {
 		n, _ := h.Describe()
 		p := fmt.Sprintf("%s/%s/%s/", b.Path, mx.name, n)
 		nu := *b
 		nu.Path = p
 		h.SetURL(&nu)
 	}
+}
+
+// Help will send help about all the handlers in the mux to the user
+func (mx *Mux) Help(ctx context.Context, w io.Writer, m *command.Message) error {
+	out := &bytes.Buffer{}
+	tw := new(tabwriter.Writer)
+	tw.Init(out, 0, 8, 1, '\t', 0)
+
+	if hh, ok := mx.ToBot.(help.Helper); ok {
+		hh.Help(ctx, w, m)
+	}
+
+	if len(mx.HearsHandlers) > 0 {
+		fmt.Fprintf(out, "Active hear handlers are patternss are:\n")
+		for r, hs := range mx.HearsHandlers {
+			for _, h := range hs {
+				n, d := h.Describe()
+				fmt.Fprintf(tw, "  %s\t`%s`\t - %s\n", n, r.String(), d)
+			}
+		}
+		tw.Flush()
+	}
+
+	if len(mx.BGHandlers) > 0 {
+		fmt.Fprintf(out, "Active background handlers are:\n")
+		for _, h := range mx.BGHandlers {
+			n, d := h.Describe()
+			fmt.Fprintf(tw, "  %s\t - %s\n", n, d)
+		}
+		tw.Flush()
+	}
+
+	if len(mx.RawHandlers) > 0 {
+		fmt.Fprintf(out, "Active raw handlers are:\n")
+		for _, h := range mx.RawHandlers {
+			n, d := h.Describe()
+			fmt.Fprintf(tw, "  %s\t - %s\n", n, d)
+		}
+		tw.Flush()
+	}
+
+	io.Copy(w, out)
+	return nil
 }

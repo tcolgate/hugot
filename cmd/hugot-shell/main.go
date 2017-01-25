@@ -36,9 +36,15 @@ import (
 
 	// Add some handlers
 
-	"github.com/tcolgate/hugot/handlers/tableflip"
-	"github.com/tcolgate/hugot/handlers/testcli"
-	"github.com/tcolgate/hugot/handlers/uptime"
+	"github.com/tcolgate/hugot/handlers/alias"
+	"github.com/tcolgate/hugot/handlers/command"
+	"github.com/tcolgate/hugot/handlers/command/ping"
+	"github.com/tcolgate/hugot/handlers/command/testcli"
+	"github.com/tcolgate/hugot/handlers/command/uptime"
+	"github.com/tcolgate/hugot/handlers/hears/tableflip"
+	"github.com/tcolgate/hugot/handlers/help"
+	"github.com/tcolgate/hugot/handlers/mux"
+	"github.com/tcolgate/hugot/storers/memory"
 )
 
 var nick = flag.String("nick", "minion", "Bot nick")
@@ -63,21 +69,24 @@ func main() {
 		glog.Fatal(err)
 	}
 
-	//	hugot.Handle(ping.New())
-	//	hugot.Handle(testweb.New())
-	//	hugot.Handle(alias.New(hugot.DefaultMux, nil))
+	mux.Background(hugot.NewBackgroundHandler("test bg", "testing bg", bgHandler))
+	mux.HandleHTTP(hugot.NewWebHookHandler("test", "test http", httpHandler))
 
-	hugot.HandleHears(tableflip.New())
-	hugot.HandleCommand(uptime.New())
-	hugot.HandleCommand(testcli.New())
+	mux.DefaultMux.Hears(tableflip.New())
 
-	hugot.HandleBackground(hugot.NewBackgroundHandler("test bg", "testing bg", bgHandler))
-	hugot.HandleHTTP(hugot.NewWebHookHandler("test", "test http", httpHandler))
+	command.DefaultSet.MustAdd(testcli.New())
+	command.DefaultSet.MustAdd(uptime.New())
+	command.DefaultSet.MustAdd(ping.New())
+	command.DefaultSet.MustAdd(help.New(mux.DefaultMux))
+
+	hugot.DefaultHandler = alias.New(mux.DefaultMux, command.DefaultSet, memory.New())
+
+	//command.DefaultSet.MustAdd(ah, ping.New())
 
 	u, _ := url.Parse("http://localhost:8080")
-	hugot.SetURL(u)
+	mux.SetURL(u)
 
-	go bot.ListenAndServe(ctx, nil, a)
+	go bot.ListenAndServe(ctx, hugot.DefaultHandler, a)
 	http.Handle("/metrics", prometheus.Handler())
 	go http.ListenAndServe(":8081", nil)
 

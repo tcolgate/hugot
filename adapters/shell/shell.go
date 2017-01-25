@@ -20,7 +20,7 @@
 package shell
 
 import (
-	"log"
+	"fmt"
 	"os"
 	"os/user"
 
@@ -58,7 +58,7 @@ func (s *shell) Receive() <-chan *hugot.Message {
 
 func (s *shell) Main() {
 	rl, err := readline.NewEx(&readline.Config{
-		UniqueEditLine: true,
+		UniqueEditLine: false,
 	})
 	if err != nil {
 		panic(err)
@@ -66,16 +66,14 @@ func (s *shell) Main() {
 	defer rl.Close()
 
 	rl.ResetHistory()
-	log.SetOutput(rl.Stderr())
 
 	rl.SetPrompt(s.user + "> ")
-
 	done := make(chan struct{})
 	go func() {
 		for {
 			select {
 			case m := <-s.sch:
-				log.Printf("%s: %s", s.nick, m.Text)
+				fmt.Fprintf(rl, "%s> %s\n", s.nick, m.Text)
 			case <-done:
 				break
 			}
@@ -84,6 +82,7 @@ func (s *shell) Main() {
 	}()
 
 	for {
+		rl.SetPrompt(s.user + "> ")
 		ln, err := rl.Readline()
 		if err != nil {
 			break

@@ -1,17 +1,21 @@
-package hugot_test
+package help_test
 
 import (
 	"context"
 	"testing"
 
 	"github.com/tcolgate/hugot"
-	"github.com/tcolgate/hugot/handlers/testcli"
+	"github.com/tcolgate/hugot/handlers/command"
+	"github.com/tcolgate/hugot/handlers/command/testcli"
+	"github.com/tcolgate/hugot/handlers/mux"
 	"github.com/tcolgate/hugot/hugottest"
 )
 
 func TestHelp_Match(t *testing.T) {
-	mx := hugot.NewMux("test", "test mux")
-	mx.HandleCommand(testcli.New())
+	mx := mux.New("test", "test mux")
+	cs := command.NewSet()
+	cs.Add(testcli.New())
+	mx.ToBot = cs
 
 	in := make(chan *hugot.Message)
 	out := make(chan hugot.Message)

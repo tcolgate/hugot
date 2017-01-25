@@ -31,9 +31,12 @@ import (
 	"github.com/tcolgate/hugot/adapters/slack"
 
 	// Pick some handlers.
-	"github.com/tcolgate/hugot/handlers/ping"
-	"github.com/tcolgate/hugot/handlers/tableflip"
-	"github.com/tcolgate/hugot/handlers/testcli"
+
+	"github.com/tcolgate/hugot/handlers/command"
+	"github.com/tcolgate/hugot/handlers/command/ping"
+	"github.com/tcolgate/hugot/handlers/command/testcli"
+	"github.com/tcolgate/hugot/handlers/hears/tableflip"
+	"github.com/tcolgate/hugot/handlers/mux"
 	"github.com/tcolgate/hugot/handlers/testweb"
 )
 
@@ -50,14 +53,17 @@ func Example() {
 		glog.Fatal(err)
 	}
 
-	hugot.HandleCommand(ping.New())
-	hugot.HandleCommand(testcli.New())
-	hugot.HandleHears(tableflip.New())
+	mux := mux.New("mymux", "my mux")
+	mux.HandleHTTP(testweb.New())
+	mux.Hears(tableflip.New())
 
-	hugot.HandleHTTP(testweb.New())
+	cmds := command.NewSet()
+	cmds.Add(ping.New(), testcli.New())
+
+	mux.ToBot = cmds
 
 	// This will start read , process and forward
 	// messages from the adapter into the default
 	// handler mux./
-	hugot.ListenAndServe(ctx, nil, a)
+	hugot.ListenAndServe(ctx, mux, a)
 }

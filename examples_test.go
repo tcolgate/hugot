@@ -24,9 +24,10 @@ import (
 	"context"
 
 	"github.com/tcolgate/hugot"
+	"github.com/tcolgate/hugot/handlers/command"
 )
 
-func ExampleMessage_Parse(ctx context.Context, w hugot.ResponseWriter, m *hugot.Message) error {
+func ExampleMessage_Parse(ctx context.Context, w hugot.ResponseWriter, m *command.Message) error {
 	v := m.Bool("v", false, "be verbose")
 	dur := m.Duration("d", 1*time.Hour, "how long to do thing for")
 	baz := m.String("baz", "some argument", "another agument")

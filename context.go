@@ -7,7 +7,6 @@ type hugotCtxKey int
 //var adapterKey = hugotCtxKey(1)
 const (
 	adapterKey hugotCtxKey = iota
-	cmdPathKey
 )
 
 // NewAdapterContext creates a context for passing an adapter. This is

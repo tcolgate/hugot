@@ -24,7 +24,7 @@ func (th *testHears) Hears() *regexp.Regexp {
 	return th.re
 }
 
-func (th *testHears) ProcessMessage(ctx context.Context, w hugot.ResponseWriter, m *hugot.Message) error {
+func (th *testHears) Heard(ctx context.Context, w hugot.ResponseWriter, m *hugot.Message, ms [][]string) error {
 	fmt.Fprintf(w, "heard")
 	return nil
 }
@@ -32,7 +32,7 @@ func (th *testHears) ProcessMessage(ctx context.Context, w hugot.ResponseWriter,
 func TestHears_Match(t *testing.T) {
 	th := &testHears{regexp.MustCompile("testing")}
 	mx := mux.New("test", "test mux")
-	mx.HandleHears(th)
+	mx.Hears(th)
 	in := make(chan *hugot.Message)
 	out := make(chan hugot.Message)
 	ta := hugottest.NewAdapter(in, out)
@@ -43,17 +43,21 @@ func TestHears_Match(t *testing.T) {
 	go hugot.ListenAndServe(ctx, mx, ta)
 
 	ta.MessagesIn <- &hugot.Message{Text: "testing testing 123"}
-	m := <-out
-	expected := "heard"
-	if m.Text != expected {
-		t.Fatalf("message did not contant expected test, wanted = %q got = %q", expected, m.Text)
+	select {
+	case m := <-out:
+		expected := "heard"
+		if m.Text != expected {
+			t.Fatalf("message did not contant expected test, wanted = %q got = %q", expected, m.Text)
+		}
+	case <-time.After(10 * time.Millisecond):
+		t.Fatal("Timeout waiting for message")
 	}
 }
 
 func TestHears_NoMatch(t *testing.T) {
 	th := &testHears{regexp.MustCompile("testing")}
-	mx := hugot.NewMux("test", "test mux")
-	mx.HandleHears(th)
+	mx := mux.New("test", "test mux")
+	mx.Hears(th)
 	in := make(chan *hugot.Message)
 	out := make(chan hugot.Message)
 	ta := hugottest.NewAdapter(in, out)

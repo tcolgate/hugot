@@ -50,24 +50,6 @@ func NewNullResponseWriter(m Message) ResponseWriter {
 	return newResponseWriter(nullSender{}, m, "null")
 }
 
-type basicHandler struct {
-	name string
-	desc string
-	f    HandlerFunc
-}
-
-func (bh *basicHandler) Describe() (string, string) {
-	return bh.name, bh.desc
-}
-
-func NewBasicHandler(name, desc string, doFunc HandlerFunc) *basicHandler {
-	return &basicHandler{name, desc, doFunc}
-}
-
-func (bh *basicHandler) ProcessMessage(ctx context.Context, w ResponseWriter, m *Message) error {
-	return bh.f(ctx, w, m)
-}
-
 // ResponseWriter is used to Send messages back to a user.
 type ResponseWriter interface {
 	Sender

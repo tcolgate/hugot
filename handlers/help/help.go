@@ -1,118 +1,63 @@
-package hugot
+package help
 
 import (
 	"bytes"
-	"flag"
-	"fmt"
 	"io"
-	"strings"
-	"text/tabwriter"
+
+	"github.com/tcolgate/hugot"
+	"github.com/tcolgate/hugot/handlers/command"
 
 	"context"
 )
 
-type MuxHelpHandler struct {
-	CommandHandler
-	p *Mux
+type Helper interface {
+	Help(ctx context.Context, w io.Writer, m *command.Message) error
 }
 
-func NewMuxHelpHamdler(mx *Mux) *MuxHelpHandler {
-	h := &MuxHelpHandler{
-		p: mx,
-	}
-	h.CommandHandler = NewCommandHandler("help", "provides help", h.command, nil)
+type Handler struct {
+	nh Helper
+}
+
+func New(nh Helper) *Handler {
+	h := &Handler{nh}
 	return h
 }
 
-func (mx *MuxHelpHandler) command(ctx context.Context, w ResponseWriter, m *Message) error {
-	//capture the command we were called as
-	initcmd := m.args[0]
-	m.Parse()
-	cmds := m.Args()
-
-	// list the full help
-	if len(cmds) == 0 && initcmd == "help" {
-		mx.fullHelp(ctx, w, m)
-	} else {
-		if initcmd != "help" {
-			cmds = append([]string{initcmd}, cmds...)
-		}
-		err := mx.cmdHelp(ctx, w, cmds)
-		if err != nil {
-			return err
-		}
-	}
-
-	return ErrSkipHears
+func (h *Handler) Describe() (string, string) {
+	return "help", "provdes description of handler usage"
 }
 
-func (mx *MuxHelpHandler) fullHelp(ctx context.Context, w ResponseWriter, m *Message) {
+func (h *Handler) Command(ctx context.Context, w hugot.ResponseWriter, m *command.Message) error {
 	out := &bytes.Buffer{}
-	tw := new(tabwriter.Writer)
-	tw.Init(out, 0, 8, 1, '\t', 0)
-
-	if len(*mx.p.cmds) > 0 {
-		fmt.Fprintf(out, "Available commands are:\n")
-		_, _, hs := (*mx.p.cmds).List()
-		for _, h := range hs {
-			n, d := h.Describe()
-			fmt.Fprintf(tw, "  %s\t - %s\n", n, d)
-		}
-		tw.Flush()
+	m.Parse()
+	if err := h.nh.Help(ctx, out, m); err != nil {
+		return err
 	}
-
-	if len(mx.p.hears) > 0 {
-		fmt.Fprintf(out, "Active hear handlers are patternss are:\n")
-		for r, hs := range mx.p.hears {
-			for _, h := range hs {
-				n, d := h.Describe()
-				fmt.Fprintf(tw, "  %s\t`%s`\t - %s\n", n, r.String(), d)
-			}
-		}
-		tw.Flush()
-	}
-
-	if len(mx.p.bghndlrs) > 0 {
-		fmt.Fprintf(out, "Active background handlers are:\n")
-		for _, h := range mx.p.bghndlrs {
-			n, d := h.Describe()
-			fmt.Fprintf(tw, "  %s\t - %s\n", n, d)
-		}
-		tw.Flush()
-	}
-
-	if len(mx.p.rhndlrs) > 0 {
-		fmt.Fprintf(out, "Active raw handlers are:\n")
-		for _, h := range mx.p.rhndlrs {
-			n, d := h.Describe()
-			fmt.Fprintf(tw, "  %s\t - %s\n", n, d)
-		}
-		tw.Flush()
-	}
-
-	io.Copy(w, out)
+	w.Send(ctx, m.Reply(string(out.Bytes())))
+	return command.ErrSkipHears
 }
 
-func (mx *MuxHelpHandler) cmdHelp(ctx context.Context, w ResponseWriter, cmds []string) error {
-	var cs *CommandSet
+/*
+func (h *MuxHelp) cmdHelp(ctx context.Context, w hugot.ResponseWriter, cmds []string) error {
+	var cs command.Set
 	var path []string
 
-	cs = mx.p.cmds
+	cs = h.mx.Commands
 
-	var cmd CommandHandler
+	var cmd command.Commander
 	for {
 		if len(cmds) == 0 {
 			break
 		}
 
 		ok := false
-		if cmd, ok = (*cs)[cmds[0]]; !ok {
-			return ErrUnknownCommand
+		if cmd, ok = cs[cmds[0]]; !ok {
+			return command.ErrUnknownCommand
 		}
 
 		path = append(path, cmds[0])
 		cmds = cmds[1:]
-		if sch, ok := cmd.(CommandWithSubsHandler); ok {
+		if sch, ok := cmd.(command.CommanderWithSubs); ok {
 			cs = sch.SubCommands()
 		} else {
 			break
@@ -123,21 +68,21 @@ func (mx *MuxHelpHandler) cmdHelp(ctx context.Context, w ResponseWriter, cmds []
 	return nil
 }
 
-func cmdUsage(c CommandHandler, cmdStr string, err error) error {
+func cmdUsage(c command.Commander, cmdStr string, err error) error {
 	_, desc := c.Describe()
-	m := &Message{args: []string{cmdStr, "-help"}}
-	m.flagOut = &bytes.Buffer{}
+	m := &command.Message{}}
+	m.FlagOut = &bytes.Buffer{}
 	m.FlagSet = flag.NewFlagSet(cmdStr, flag.ContinueOnError)
-	m.FlagSet.SetOutput(m.flagOut)
+	m.FlagSet.SetOutput(m.FlagOut)
 
-	c.Command(context.TODO(), NewNullResponseWriter(*m), m)
-	if subcx, ok := c.(CommandWithSubsHandler); ok {
+	c.Command(context.TODO(), hugot.NewNullResponseWriter(*m.Message), m)
+	if subcx, ok := c.(command.CommanderWithSubs); ok {
 		subs := subcx.SubCommands()
-		if subs != nil && len(*subs) > 0 {
-			fmt.Fprintf(m.flagOut, "  Sub commands:\n")
-			for n, s := range *subs {
+		if subs != nil && len(subs) > 0 {
+			fmt.Fprintf(m.FlagOut, "  Sub commands:\n")
+			for n, s := range subs {
 				_, desc := s.Describe()
-				fmt.Fprintf(m.flagOut, "    %s - %s\n", n, desc)
+				fmt.Fprintf(m.FlagOut, "    %s - %s\n", n, desc)
 			}
 		}
 	}
@@ -148,5 +93,6 @@ func cmdUsage(c CommandHandler, cmdStr string, err error) error {
 	} else {
 		str = fmt.Sprintf("Description: %s\n", desc)
 	}
-	return ErrUsage{str + m.flagOut.String()}
+	return command.ErrUsage(str + m.FlagOut.String())
 }
+*/
