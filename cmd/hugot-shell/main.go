@@ -44,6 +44,7 @@ import (
 	"github.com/tcolgate/hugot/handlers/hears/tableflip"
 	"github.com/tcolgate/hugot/handlers/help"
 	"github.com/tcolgate/hugot/handlers/mux"
+	"github.com/tcolgate/hugot/handlers/roles"
 	"github.com/tcolgate/hugot/storers/memory"
 )
 
@@ -79,9 +80,8 @@ func main() {
 	command.DefaultSet.MustAdd(ping.New())
 	command.DefaultSet.MustAdd(help.New(mux.DefaultMux))
 
-	hugot.DefaultHandler = alias.New(mux.DefaultMux, command.DefaultSet, memory.New())
-
-	//command.DefaultSet.MustAdd(ah, ping.New())
+	hugot.DefaultHandler = alias.New(hugot.DefaultHandler, command.DefaultSet, memory.New())
+	hugot.DefaultHandler = roles.New(hugot.DefaultHandler, command.DefaultSet, memory.New())
 
 	u, _ := url.Parse("http://localhost:8080")
 	mux.SetURL(u)
