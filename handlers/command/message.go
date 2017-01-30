@@ -20,9 +20,19 @@ func (m *Message) Copy() *Message {
 // Args returns the arguments parsed from the message
 func (m *Message) Args() []string {
 	if m.args == nil {
-		m.args = strings.Split(m.Text, " ")
+		var err error
+		m.args, err = shellwords.Parse(m.Text)
+		if err != nil {
+			m.args = strings.Split(m.Text, " ")
+		}
+
 	}
 	return m.args
+}
+
+// SetArgs sets the arguments to a specific set of values
+func (m *Message) SetArgs(args []string) {
+	m.args = args
 }
 
 // Parse process any Args for this message in line with any flags that have

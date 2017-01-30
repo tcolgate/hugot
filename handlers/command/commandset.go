@@ -165,7 +165,12 @@ func (s Set) ProcessMessage(ctx context.Context, w hugot.ResponseWriter, hm *hug
 	m.FlagSet = flag.NewFlagSet(hn, flag.ContinueOnError)
 	m.FlagOut = &bytes.Buffer{}
 	m.FlagSet.SetOutput(m.FlagOut)
-	return ch.Command(ctx, w, m)
+
+	err = ch.Command(ctx, w, m)
+	if len(m.FlagOut.Bytes()) > 0 {
+		return ErrUsage(string(m.FlagOut.String()))
+	}
+	return err
 }
 
 type Helper interface {
@@ -175,7 +180,6 @@ type Helper interface {
 // Help
 func (s Set) Help(ctx context.Context, w io.Writer, m *Message) error {
 	if len(m.Args()) != 0 {
-		m.Parse()
 		ch, err := s.NextCommand(m)
 		if err != nil {
 			return err
@@ -184,11 +188,10 @@ func (s Set) Help(ctx context.Context, w io.Writer, m *Message) error {
 		m.FlagSet = flag.NewFlagSet(hn, flag.ContinueOnError)
 		m.FlagOut = &bytes.Buffer{}
 		m.FlagSet.SetOutput(m.FlagOut)
-
-		if nhh, ok := ch.(Helper); ok {
-			return nhh.Help(ctx, w, m)
-		}
-		return fmt.Errorf("no help for command %s", hn)
+		m.SetArgs(append(m.Args(), "-h"))
+		rw := hugot.NewNullResponseWriter(*m.Message)
+		ch.Command(ctx, rw, m)
+		return nil
 	}
 
 	hns, descs, _ := s.List()

@@ -308,6 +308,10 @@ func (mx *Mux) SetURL(b *url.URL) {
 
 // Help will send help about all the handlers in the mux to the user
 func (mx *Mux) Help(ctx context.Context, w io.Writer, m *command.Message) error {
+	if len(m.Args()) > 0 {
+		return mx.cmdHelp(ctx, w, m)
+	}
+
 	out := &bytes.Buffer{}
 	tw := new(tabwriter.Writer)
 	tw.Init(out, 0, 8, 1, '\t', 0)
@@ -348,3 +352,64 @@ func (mx *Mux) Help(ctx context.Context, w io.Writer, m *command.Message) error 
 	io.Copy(w, out)
 	return nil
 }
+
+func (mx *Mux) cmdHelp(ctx context.Context, w io.Writer, m *command.Message) error {
+	cmd := m.Arg(1)
+
+	allhs := []hugot.Describer{}
+	for _, h := range mx.RawHandlers {
+		allhs = append(allhs, h)
+	}
+	for _, h := range mx.BGHandlers {
+		allhs = append(allhs, h)
+	}
+
+	for _, h := range allhs {
+		hn, desc := h.Describe()
+		if hn == cmd {
+			if hh, ok := h.(help.Helper); ok {
+				m.SetArgs(m.Args())
+				return hh.Help(ctx, w, m)
+			}
+			fmt.Fprintln(w, desc)
+		}
+	}
+
+	if hh, ok := mx.ToBot.(help.Helper); ok {
+		m.SetArgs(m.Args())
+		return hh.Help(ctx, w, m)
+	}
+
+	return nil
+}
+
+/*
+
+func cmdUsage(c command.Commander, cmdStr string, err error) error {
+	_, desc := c.Describe()
+	m := &command.Message{}}
+	m.FlagOut = &bytes.Buffer{}
+	m.FlagSet = flag.NewFlagSet(cmdStr, flag.ContinueOnError)
+	m.FlagSet.SetOutput(m.FlagOut)
+
+	c.Command(context.TODO(), hugot.NewNullResponseWriter(*m.Message), m)
+	if subcx, ok := c.(command.CommanderWithSubs); ok {
+		subs := subcx.SubCommands()
+		if subs != nil && len(subs) > 0 {
+			fmt.Fprintf(m.FlagOut, "  Sub commands:\n")
+			for n, s := range subs {
+				_, desc := s.Describe()
+				fmt.Fprintf(m.FlagOut, "    %s - %s\n", n, desc)
+			}
+		}
+	}
+
+	str := ""
+	if err != nil {
+		str = fmt.Sprintf("error, %s\n", err.Error())
+	} else {
+		str = fmt.Sprintf("Description: %s\n", desc)
+	}
+	return command.ErrUsage(str + m.FlagOut.String())
+}
+*/

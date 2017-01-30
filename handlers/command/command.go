@@ -100,31 +100,14 @@ func (bch *Handler) ProcessMessage(ctx context.Context, w hugot.ResponseWriter, 
 	cm.FlagSet.SetOutput(cm.FlagOut)
 
 	err = bch.Command(ctx, w, cm)
+	if len(cm.FlagOut.Bytes()) > 0 {
+		return ErrUsage(string(cm.FlagOut.String()))
+	}
+
 	return err
 }
 
 // Help sends help about this command to the user.
 func (bch *Handler) Help(ctx context.Context, w io.Writer, m *Message) error {
-	/*
-		//capture the command we were called as
-		initcmd := m.Args()[0]
-		m.FlagSet.Parse()
-		cmds := m.Args()
-
-		// list the full help
-		if len(cmds) == 0 && initcmd == "help" {
-			h.fullhelp(ctx, w, m)
-		} else {
-			if initcmd != "help" {
-				cmds = append([]string{initcmd}, cmds...)
-			}
-			err := h.cmdhelp(ctx, w, cmds)
-			if err != nil {
-				return err
-			}
-		}
-
-		return command.errskiphears
-	*/
 	return nil
 }
