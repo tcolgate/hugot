@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/golang/glog"
 	"github.com/tcolgate/hugot"
 	"github.com/tcolgate/hugot/handlers/command"
 )
@@ -96,16 +95,20 @@ func (am *aliasManager) Command(ctx context.Context, w hugot.ResponseWriter, m *
 	if err := m.Parse(); err != nil {
 		return err
 	}
-	glog.Infof("%v%v%v%v", g, c, cu, u, d)
 
-	val, ok, err := m.Properties().Lookup("thing")
-	fmt.Fprintf(w, "set val = %v, ok = %v, err = %v", val, ok, err)
-
-	fmt.Fprintf(w, "err = %v", err)
-
-	ls, _ := m.Store.List("")
-	for i, l := range ls {
-		fmt.Fprintf(w, "store[%d] = %s", i, l)
+	var scope hugot.Scope
+	switch {
+	case !*g && !*c && !*u && !*cu:
+	case *g && !*c && !*u && !*cu:
+		scope = hugot.ScopeGlobal
+	case !*g && *c && !*u && !*cu:
+		scope = hugot.ScopeChannel
+	case !*g && !*c && *u && !*cu:
+		scope = hugot.ScopeUser
+	case !*g && !*c && !*u && *cu:
+		scope = hugot.ScopeChannelUser
+	default:
+		return fmt.Errorf("Specify exactly one of -g, -c, -cu or -u")
 	}
 
 	return nil

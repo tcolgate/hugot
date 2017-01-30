@@ -81,7 +81,7 @@ func ListenAndServe(ctx context.Context, h Handler, a Adapter, as ...Adapter) {
 	for {
 		select {
 		case mrw := <-mrws:
-			mrw.m.Store = NewPrefixedStore(DefaultStore, hn)
+			mrw.m.Store = NewPrefixedStore(DefaultStore, []string{hn})
 			go func(smrw) {
 				if err := h.ProcessMessage(ctx, mrw.w, mrw.m); err != nil {
 					mrw.w.Send(ctx, mrw.m.Replyf("%v\n", err))

@@ -6,8 +6,10 @@ import "fmt"
 type Scope int
 
 const (
+	// ScopeUnknown  invalid scope
+	ScopeUnknown Scope = iota
 	// ScopeGlobal applies to all users
-	ScopeGlobal Scope = iota
+	ScopeGlobal
 	// ScopeChannel applies to all users in the current channel
 	ScopeChannel
 	// ScopeUser applues to one user
@@ -17,6 +19,7 @@ const (
 )
 
 var scopeOrder = []Scope{
+	ScopeUnknown,
 	ScopeChannelUser,
 	ScopeUser,
 	ScopeChannel,
@@ -57,7 +60,7 @@ func propertyKey(m *Message, s Scope, k string) string {
 // Set sets a property for the given scope, using the channel and
 // and user details in the message provided in Message
 func (ps PropertyStore) Set(s Scope, k, v string) error {
-	return ps.store.Set(propertyKey(ps.m, s, k), v)
+	return ps.store.Set([]string{propertyKey(ps.m, s, k)}, v)
 }
 
 // Lookup looks up a property. Scopes are searched in the following order:
@@ -80,7 +83,7 @@ func (ps PropertyStore) Lookup(k string) (string, bool, error) {
 
 // LookupInScope looks up the property for the given message, in the reuested scope
 func (ps PropertyStore) LookupInScope(s Scope, k string) (string, bool, error) {
-	bs, ok, err := ps.store.Get(propertyKey(ps.m, s, k))
+	bs, ok, err := ps.store.Get([]string{propertyKey(ps.m, s, k)})
 	return string(bs), ok, err
 }
 

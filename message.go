@@ -76,5 +76,5 @@ func (m *Message) Replyf(s string, is ...interface{}) *Message {
 // Properties are used to associate scoped key/value data
 // with a message
 func (m *Message) Properties() PropertyStore {
-	return NewPropertyStore(NewPrefixedStore(m.Store, "props"), m)
+	return NewPropertyStore(NewPrefixedStore(m.Store, []string{"props"}), m)
 }
