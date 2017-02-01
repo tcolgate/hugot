@@ -1,6 +1,6 @@
-package hugot
+package storage
 
-import "github.com/tcolgate/hugot/storers/memory"
+import "github.com/tcolgate/hugot/storage/memory"
 
 // Storer is an interface describing our KV store
 // requirements
@@ -11,6 +11,11 @@ type Storer interface {
 	Unset(key []string) error
 }
 
+var (
+	//DefaultStore is the default storage used by all handlers.
+	DefaultStore = memory.New()
+)
+
 // PrefixStore wraps a Storer, and transparenttly
 // appends and removes a prefix
 type PrefixStore struct {
@@ -18,10 +23,6 @@ type PrefixStore struct {
 	pfx  []string
 	base Storer
 }
-
-var (
-	DefaultStore = memory.New()
-)
 
 // NewPrefixedStore creates a store than preprends your
 // provided prefix to store keys (with a # separator)

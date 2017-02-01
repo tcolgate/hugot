@@ -33,11 +33,14 @@ import (
 	"github.com/tcolgate/hugot/handlers/command"
 	"github.com/tcolgate/hugot/handlers/hears"
 	"github.com/tcolgate/hugot/handlers/help"
-	"github.com/tcolgate/hugot/storers/memory"
+	"github.com/tcolgate/hugot/storage"
+	"github.com/tcolgate/hugot/storage/memory"
+	"github.com/tcolgate/hugot/storage/prefix"
 
 	"context"
 )
 
+// DefaultMux is a default instance of amux
 var DefaultMux = New("hugot", "")
 
 func init() {
@@ -54,7 +57,7 @@ func init() {
 type Mux struct {
 	name  string
 	desc  string
-	store hugot.Storer
+	store storage.Storer
 
 	burl  *url.URL
 	httpm *http.ServeMux // http Mux
@@ -95,7 +98,7 @@ func New(name, desc string, opts ...Opt) *Mux {
 
 // WithStore is a Mux option to set the store to be used
 // for managing aliases, and property lookup.
-func WithStore(s hugot.Storer) Opt {
+func WithStore(s storage.Storer) Opt {
 	return func(m *Mux) {
 		m.store = s
 	}
@@ -159,7 +162,7 @@ func (mx *Mux) ProcessMessage(ctx context.Context, w hugot.ResponseWriter, m *hu
 			if ms := hh.Hears().FindAllStringSubmatch(m.Text, -1); ms != nil {
 				nm := m.Copy()
 				hn, _ := hh.Describe()
-				nm.Store = hugot.NewPrefixedStore(hugot.DefaultStore, []string{hn})
+				nm.Store = prefix.New(storage.DefaultStore, []string{hn})
 				err = hh.Heard(ctx, w, nm, ms)
 			}
 		}

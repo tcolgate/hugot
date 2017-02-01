@@ -21,6 +21,8 @@ import (
 	"fmt"
 
 	"github.com/nlopes/slack"
+	"github.com/tcolgate/hugot/storage"
+	"github.com/tcolgate/hugot/storage/prefix"
 )
 
 // Message describes a Message from or to a user. It is intended to
@@ -42,7 +44,7 @@ type Message struct {
 	Private bool
 	ToBot   bool
 
-	Store Storer
+	Store storage.Storer
 }
 
 // Copy is used to provide a deep copy of a message
@@ -76,5 +78,5 @@ func (m *Message) Replyf(s string, is ...interface{}) *Message {
 // Properties are used to associate scoped key/value data
 // with a message
 func (m *Message) Properties() PropertyStore {
-	return NewPropertyStore(NewPrefixedStore(m.Store, []string{"props"}), m)
+	return NewPropertyStore(prefix.New(m.Store, []string{"props"}), m)
 }

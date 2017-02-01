@@ -7,11 +7,19 @@ import (
 	"sync"
 )
 
-// MemStore implements a simple memory store over a map
+// Store implements a simple memory store over a map
 // It is safe for concurrent access
-type MemStore struct {
+type Store struct {
 	sync.RWMutex
 	data map[string]string
+}
+
+// New creates a new memory store baked by go map
+func New() *Store {
+	return &Store{
+		sync.RWMutex{},
+		make(map[string]string),
+	}
 }
 
 func keyToPath(key []string) string {
@@ -40,23 +48,23 @@ func pathToKey(path string) []string {
 }
 
 // Get retries a key from the store
-func (m *MemStore) Get(key []string) (string, bool, error) {
-	m.RLock()
-	defer m.RUnlock()
+func (s *Store) Get(key []string) (string, bool, error) {
+	s.RLock()
+	defer s.RUnlock()
 
-	v, ok := m.data[keyToPath(key)]
+	v, ok := s.data[keyToPath(key)]
 	return v, ok, nil
 }
 
 // List all items under the provided prefix
-func (m *MemStore) List(key []string) ([][]string, error) {
-	m.RLock()
-	defer m.RUnlock()
+func (s *Store) List(key []string) ([][]string, error) {
+	s.RLock()
+	defer s.RUnlock()
 
 	pfx := keyToPath(key)
 
 	ks := [][]string{}
-	for k := range m.data {
+	for k := range s.data {
 		if strings.HasPrefix(string(k), pfx) {
 			ks = append(ks, pathToKey(string(k[len(key):])))
 		}
@@ -65,27 +73,19 @@ func (m *MemStore) List(key []string) ([][]string, error) {
 }
 
 // Set a key in the store
-func (m *MemStore) Set(key []string, value string) error {
-	m.Lock()
-	defer m.Unlock()
+func (s *Store) Set(key []string, value string) error {
+	s.Lock()
+	defer s.Unlock()
 
-	m.data[keyToPath(key)] = value
+	s.data[keyToPath(key)] = value
 	return nil
 }
 
 // Unset a key in the store
-func (m *MemStore) Unset(key []string) error {
-	m.Lock()
-	defer m.Unlock()
+func (s *Store) Unset(key []string) error {
+	s.Lock()
+	defer s.Unlock()
 
-	delete(m.data, keyToPath(key))
+	delete(s.data, keyToPath(key))
 	return nil
-}
-
-// New creates a new memory store baked by go map
-func New() *MemStore {
-	return &MemStore{
-		sync.RWMutex{},
-		make(map[string]string),
-	}
 }

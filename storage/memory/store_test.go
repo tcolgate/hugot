@@ -3,18 +3,18 @@ package memory_test
 import (
 	"testing"
 
-	"github.com/tcolgate/hugot"
-	"github.com/tcolgate/hugot/storers/memory"
+	"github.com/tcolgate/hugot/storage"
+	"github.com/tcolgate/hugot/storage/memory"
 )
 
 func TestStore(t *testing.T) {
 	var i interface{}
 	s := memory.New()
 	i = s
-	_, ok := i.(hugot.Storer)
+	_, ok := i.(storage.Storer)
 
 	if !ok {
-		t.Fatalf("%T does not support hugot.Storer", s)
+		t.Fatalf("%T does not support storage.Storer", s)
 	}
 }
 

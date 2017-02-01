@@ -1,6 +1,10 @@
 package hugot
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/tcolgate/hugot/storage"
+)
 
 // Scope represents a scope for a property
 type Scope int
@@ -32,13 +36,13 @@ func (s Scope) keyFmt() {
 // PropertyStore is used to store key values pairs that are
 // dependent on a scope
 type PropertyStore struct {
-	store Storer
+	store storage.Storer
 	m     *Message
 }
 
 // NewPropertyStore uese the provided store to store properties,
 // under a prefix pfx
-func NewPropertyStore(s Storer, m *Message) PropertyStore {
+func NewPropertyStore(s storage.Storer, m *Message) PropertyStore {
 	return PropertyStore{s, m}
 }
 
@@ -61,6 +65,12 @@ func propertyKey(m *Message, s Scope, k string) string {
 // and user details in the message provided in Message
 func (ps PropertyStore) Set(s Scope, k, v string) error {
 	return ps.store.Set([]string{propertyKey(ps.m, s, k)}, v)
+}
+
+// Unset sets a property in a given scope, using the channel and
+// and user details in the message provided in Message
+func (ps PropertyStore) Unset(s Scope, k string) error {
+	return ps.store.Unset([]string{propertyKey(ps.m, s, k)})
 }
 
 // Lookup looks up a property. Scopes are searched in the following order:

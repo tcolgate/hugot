@@ -22,6 +22,9 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/tcolgate/hugot/storage"
+	"github.com/tcolgate/hugot/storage/prefix"
+
 	"golang.org/x/sync/errgroup"
 )
 
@@ -81,7 +84,7 @@ func ListenAndServe(ctx context.Context, h Handler, a Adapter, as ...Adapter) {
 	for {
 		select {
 		case mrw := <-mrws:
-			mrw.m.Store = NewPrefixedStore(DefaultStore, []string{hn})
+			mrw.m.Store = prefix.New(storage.DefaultStore, []string{hn})
 			go func(smrw) {
 				if err := h.ProcessMessage(ctx, mrw.w, mrw.m); err != nil {
 					mrw.w.Send(ctx, mrw.m.Replyf("%v\n", err))
