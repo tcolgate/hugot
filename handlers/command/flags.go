@@ -3,7 +3,7 @@ package command
 import (
 	"fmt"
 
-	"github.com/tcolgate/hugot"
+	"github.com/tcolgate/hugot/scope"
 )
 
 // ScopeFlags can be used to add a set of cli flags to a message to aide
@@ -26,18 +26,18 @@ func AddScopeFlags(m *Message) *ScopeFlags {
 }
 
 // Scope find which scope the user has selected
-func (sf *ScopeFlags) Scope() (hugot.Scope, error) {
+func (sf *ScopeFlags) Scope() (scope.Scope, error) {
 	switch {
 	case *sf.g && !*sf.c && !*sf.u && !*sf.cu:
-		return hugot.ScopeGlobal, nil
+		return scope.Global, nil
 	case !*sf.g && *sf.c && !*sf.u && !*sf.cu:
-		return hugot.ScopeChannel, nil
+		return scope.Channel, nil
 	case !*sf.g && !*sf.c && *sf.u && !*sf.cu:
-		return hugot.ScopeUser, nil
+		return scope.User, nil
 	case !*sf.g && !*sf.c && !*sf.u && *sf.cu:
-		return hugot.ScopeChannelUser, nil
+		return scope.ChannelUser, nil
 	default:
-		return hugot.ScopeUnknown, fmt.Errorf("Specify exactly one of -g, -c, -cu or -u")
+		return scope.Unknown, fmt.Errorf("Specify exactly one of -g, -c, -cu or -u")
 	}
 }
 

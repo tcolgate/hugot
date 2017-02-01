@@ -22,6 +22,7 @@ import (
 
 	"github.com/tcolgate/hugot"
 	"github.com/tcolgate/hugot/handlers/command"
+	"github.com/tcolgate/hugot/storage"
 )
 
 // Handler implements support for user roles
@@ -31,7 +32,7 @@ type Handler struct {
 }
 
 // New creates a new roles handler.
-func New(up hugot.Handler, cs command.Set, s hugot.Storer) *Handler {
+func New(up hugot.Handler, cs command.Set, s storage.Storer) *Handler {
 	cs.MustAdd(&manager{})
 
 	return &Handler{cs: cs, up: up}

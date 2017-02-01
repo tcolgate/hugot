@@ -24,6 +24,9 @@ import (
 
 	"github.com/tcolgate/hugot"
 	"github.com/tcolgate/hugot/handlers/command"
+	"github.com/tcolgate/hugot/scope"
+	"github.com/tcolgate/hugot/storage"
+	"github.com/tcolgate/hugot/storage/prefix"
 )
 
 // AliasHandler implements alias support for use by Mux
@@ -34,10 +37,13 @@ type AliasHandler struct {
 
 // New creates a new alias handler and registers as a command on
 // the Mux
-func New(up hugot.Handler, cs command.Set, s hugot.Storer) hugot.Handler {
+func New(up hugot.Handler, cs command.Set, s storage.Storer) hugot.Handler {
 	cs.MustAdd(&aliasManager{})
 
-	return &AliasHandler{cs: cs, up: up}
+	return &AliasHandler{
+		cs: cs,
+		up: up,
+	}
 }
 
 func (h *AliasHandler) Describe() (string, string) {
@@ -57,16 +63,17 @@ func (h *AliasHandler) ProcessMessage(ctx context.Context, w hugot.ResponseWrite
 }
 
 func (h *AliasHandler) execAlias(ctx context.Context, w hugot.ResponseWriter, m *hugot.Message) error {
+	store := prefix.New(m.Store, []string{"aliases"})
+	props := hugot.NewPropertyStore(store, m)
+
 	parts := strings.SplitN(m.Text, " ", 2)
 	if len(parts) != 1 && len(parts) != 2 {
 		return command.ErrUnknownCommand
 	}
 
-	/*
-		v, ok, _ := m.Properties().Lookup(parts[0])
-	*/
-	aliases := map[string]string{"x": "ping"}
-	v, ok := aliases[parts[0]]
+	v, ok, _ := props.Get([]string{parts[0]})
+	//aliases := map[string]string{"x": "ping"}
+	//v, ok := aliases[parts[0]]
 	if !ok {
 		return command.ErrUnknownCommand
 	}
@@ -96,17 +103,17 @@ func (am *aliasManager) Command(ctx context.Context, w hugot.ResponseWriter, m *
 		return err
 	}
 
-	var scope hugot.Scope
+	var s scope.Scope
 	switch {
 	case !*g && !*c && !*u && !*cu:
 	case *g && !*c && !*u && !*cu:
-		scope = hugot.ScopeGlobal
+		s = scope.Global
 	case !*g && *c && !*u && !*cu:
-		scope = hugot.ScopeChannel
+		s = scope.Channel
 	case !*g && !*c && *u && !*cu:
-		scope = hugot.ScopeUser
+		s = scope.User
 	case !*g && !*c && !*u && *cu:
-		scope = hugot.ScopeChannelUser
+		s = scope.ChannelUser
 	default:
 		return fmt.Errorf("Specify exactly one of -g, -c, -cu or -u")
 	}

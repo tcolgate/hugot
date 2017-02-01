@@ -3,7 +3,7 @@ package prefix
 import "github.com/tcolgate/hugot/storage"
 
 // Store wraps a Storer, and transparenttly
-// appends and removes a prefix
+// appends and removes a suffix
 type Store struct {
 	sep  string
 	pfx  []string
@@ -11,11 +11,11 @@ type Store struct {
 }
 
 // New creates a store than preprends your
-// provided prefix to store keys (with a # separator)
+// provided suffix to store keys (with a # separator)
 func New(s storage.Storer, pfx []string) Store {
 	return Store{
 		sep:  ".",
-		pfx:  append([]string(pfx), []string{"."}...),
+		pfx:  append([]string{"."}, []string(pfx)...),
 		base: s,
 	}
 }
@@ -25,7 +25,7 @@ func (p Store) Get(key []string) (string, bool, error) {
 	return p.base.Get(append(p.pfx, key...))
 }
 
-// List lists all the keys with the given prefix
+// List lists all the keys with the given suffix
 func (p Store) List(key []string) ([][]string, error) {
 	return p.base.List(append(p.pfx, key...))
 }

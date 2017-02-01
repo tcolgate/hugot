@@ -5,19 +5,21 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/tcolgate/hugot"
+	"github.com/tcolgate/hugot/scope"
+	"github.com/tcolgate/hugot/storage"
+	"github.com/tcolgate/hugot/storage/prefix"
 )
 
 // Store implements a store which
 type Store struct {
-	hugot.Storer
+	storage.Storer
 }
 
 // New returns a new Storer that prefixes the passed in Store with a key
 // defined by the scope as described by the scope and Message
-func New(base hugot.Storer, scope hugot.Scope, m *hugot.Message) *Store {
-	key := scopeKey(m, scope)
-	return &Store{hugot.NewPrefixedStore(base, []string{key})}
+func New(base storage.Storer, s scope.Scope, channel, user string) *Store {
+	key := s.Key(channel, user)
+	return &Store{prefix.New(base, []string{key})}
 }
 
 func keyToPath(key []string) string {
@@ -63,19 +65,4 @@ func (s *Store) Set(key []string, value string) error {
 // Unset a key in the store
 func (s *Store) Unset(key []string) error {
 	return s.Storer.Unset(key)
-}
-
-func scopeKey(m *hugot.Message, s hugot.Scope) string {
-	switch s {
-	case hugot.ScopeGlobal:
-		return fmt.Sprintf("global")
-	case hugot.ScopeChannel:
-		return fmt.Sprintf("channel(%q)", m.Channel)
-	case hugot.ScopeChannelUser:
-		return fmt.Sprintf("channelUser(%q,%q)", m.Channel, m.From)
-	case hugot.ScopeUser:
-		return fmt.Sprintf("user(%q)", m.From)
-	default:
-		return fmt.Sprintf("scope(%d)", s)
-	}
 }
