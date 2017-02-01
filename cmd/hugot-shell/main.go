@@ -45,7 +45,7 @@ import (
 	"github.com/tcolgate/hugot/handlers/help"
 	"github.com/tcolgate/hugot/handlers/mux"
 	"github.com/tcolgate/hugot/handlers/roles"
-	"github.com/tcolgate/hugot/storers/memory"
+	"github.com/tcolgate/hugot/storage/memory"
 )
 
 var nick = flag.String("nick", "minion", "Bot nick")

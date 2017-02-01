@@ -19,6 +19,7 @@ package alias
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -27,22 +28,25 @@ import (
 	"github.com/tcolgate/hugot/scope"
 	"github.com/tcolgate/hugot/storage"
 	"github.com/tcolgate/hugot/storage/prefix"
+	"github.com/tcolgate/hugot/storage/scoped"
 )
 
 // AliasHandler implements alias support for use by Mux
 type AliasHandler struct {
 	up hugot.Handler
 	cs command.Set
+	s  storage.Storer
 }
 
 // New creates a new alias handler and registers as a command on
 // the Mux
 func New(up hugot.Handler, cs command.Set, s storage.Storer) hugot.Handler {
-	cs.MustAdd(&aliasManager{})
+	cs.MustAdd(&aliasManager{s})
 
 	return &AliasHandler{
 		cs: cs,
 		up: up,
+		s:  s,
 	}
 }
 
@@ -63,7 +67,7 @@ func (h *AliasHandler) ProcessMessage(ctx context.Context, w hugot.ResponseWrite
 }
 
 func (h *AliasHandler) execAlias(ctx context.Context, w hugot.ResponseWriter, m *hugot.Message) error {
-	store := prefix.New(m.Store, []string{"aliases"})
+	store := prefix.New(h.s, []string{"aliases"})
 	props := hugot.NewPropertyStore(store, m)
 
 	parts := strings.SplitN(m.Text, " ", 2)
@@ -72,8 +76,6 @@ func (h *AliasHandler) execAlias(ctx context.Context, w hugot.ResponseWriter, m 
 	}
 
 	v, ok, _ := props.Get([]string{parts[0]})
-	//aliases := map[string]string{"x": "ping"}
-	//v, ok := aliases[parts[0]]
 	if !ok {
 		return command.ErrUnknownCommand
 	}
@@ -87,6 +89,7 @@ func (h *AliasHandler) execAlias(ctx context.Context, w hugot.ResponseWriter, m 
 
 // aliasManager
 type aliasManager struct {
+	s storage.Storer
 }
 
 func (am *aliasManager) Describe() (string, string) {
@@ -98,25 +101,32 @@ func (am *aliasManager) Command(ctx context.Context, w hugot.ResponseWriter, m *
 	c := m.Bool("c", false, "Create alias for current channel only")
 	u := m.Bool("u", false, "Create alias private for your user only")
 	cu := m.Bool("cu", false, "Create alias private for your user, only on this channel")
-	d := m.Bool("d", false, "Delete an alias")
+	//d := m.Bool("d", false, "Delete an alias")
 	if err := m.Parse(); err != nil {
 		return err
 	}
 
-	var s scope.Scope
+	if len(m.Args()) < 2 {
+		return errors.New("you must provide an alias name and expansion")
+	}
+
+	var store storage.Storer
 	switch {
-	case !*g && !*c && !*u && !*cu:
+	//case !*g && !*c && !*u && !*cu:
 	case *g && !*c && !*u && !*cu:
-		s = scope.Global
+		store = scoped.New(am.s, scope.Global, m.Channel, m.From)
 	case !*g && *c && !*u && !*cu:
-		s = scope.Channel
 	case !*g && !*c && *u && !*cu:
-		s = scope.User
 	case !*g && !*c && !*u && *cu:
-		s = scope.ChannelUser
 	default:
 		return fmt.Errorf("Specify exactly one of -g, -c, -cu or -u")
 	}
+
+	strs := []string{}
+	for _, str := range m.Args()[1:] {
+		strs = append(strs, fmt.Sprintf("%q", str))
+	}
+	store.Set([]string{m.Arg(0)}, strings.Join(strs, " "))
 
 	return nil
 }
