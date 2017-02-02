@@ -78,6 +78,7 @@ func (s *Store) Set(key []string, value string) error {
 	defer s.Unlock()
 
 	s.data[keyToPath(key)] = value
+
 	return nil
 }
 

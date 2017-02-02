@@ -41,12 +41,13 @@ type AliasHandler struct {
 // New creates a new alias handler and registers as a command on
 // the Mux
 func New(up hugot.Handler, cs command.Set, s storage.Storer) hugot.Handler {
-	cs.MustAdd(&aliasManager{s})
+	store := prefix.New(s, []string{"aliases"})
+	cs.MustAdd(&aliasManager{store})
 
 	return &AliasHandler{
 		cs: cs,
 		up: up,
-		s:  s,
+		s:  store,
 	}
 }
 
@@ -67,8 +68,7 @@ func (h *AliasHandler) ProcessMessage(ctx context.Context, w hugot.ResponseWrite
 }
 
 func (h *AliasHandler) execAlias(ctx context.Context, w hugot.ResponseWriter, m *hugot.Message) error {
-	store := prefix.New(h.s, []string{"aliases"})
-	props := hugot.NewPropertyStore(store, m)
+	props := hugot.NewPropertyStore(h.s, m)
 
 	parts := strings.SplitN(m.Text, " ", 2)
 	if len(parts) != 1 && len(parts) != 2 {
