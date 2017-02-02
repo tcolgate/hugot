@@ -18,10 +18,13 @@
 package alias
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"strings"
+	"text/tabwriter"
 
 	"github.com/tcolgate/hugot"
 	"github.com/tcolgate/hugot/handlers/command"
@@ -101,32 +104,75 @@ func (am *aliasManager) Command(ctx context.Context, w hugot.ResponseWriter, m *
 	c := m.Bool("c", false, "Create alias for current channel only")
 	u := m.Bool("u", false, "Create alias private for your user only")
 	cu := m.Bool("cu", false, "Create alias private for your user, only on this channel")
-	//d := m.Bool("d", false, "Delete an alias")
+	d := m.Bool("d", false, "Delete an alias")
 	if err := m.Parse(); err != nil {
 		return err
+	}
+
+	var store storage.Storer
+	switch {
+	case !*g && !*c && !*u && !*cu:
+		if len(m.Args()) > 0 {
+			return errors.New("to set an alias, select a scope")
+		}
+		return am.listCmd(ctx, w, m)
+	case *g && !*c && !*u && !*cu:
+		store = scoped.New(am.s, scope.Global, m.Channel, m.From)
+	case !*g && *c && !*u && !*cu:
+		store = scoped.New(am.s, scope.Channel, m.Channel, m.From)
+	case !*g && !*c && *u && !*cu:
+		store = scoped.New(am.s, scope.User, m.Channel, m.From)
+	case !*g && !*c && !*u && *cu:
+		store = scoped.New(am.s, scope.ChannelUser, m.Channel, m.From)
+	default:
+		return fmt.Errorf("Specify exactly one of -g, -c, -cu or -u")
+	}
+
+	if *d {
+		if len(m.Args()) != 1 {
+			return errors.New("delete requires one alias name to delete")
+		}
+		return store.Unset([]string{m.Arg(0)})
 	}
 
 	if len(m.Args()) < 2 {
 		return errors.New("you must provide an alias name and expansion")
 	}
 
-	var store storage.Storer
-	switch {
-	//case !*g && !*c && !*u && !*cu:
-	case *g && !*c && !*u && !*cu:
-		store = scoped.New(am.s, scope.Global, m.Channel, m.From)
-	case !*g && *c && !*u && !*cu:
-	case !*g && !*c && *u && !*cu:
-	case !*g && !*c && !*u && *cu:
-	default:
-		return fmt.Errorf("Specify exactly one of -g, -c, -cu or -u")
-	}
-
 	strs := []string{}
 	for _, str := range m.Args()[1:] {
 		strs = append(strs, fmt.Sprintf("%q", str))
 	}
-	store.Set([]string{m.Arg(0)}, strings.Join(strs, " "))
+
+	return store.Set([]string{m.Arg(0)}, strings.Join(strs, " "))
+}
+
+func (am *aliasManager) listCmd(ctx context.Context, w hugot.ResponseWriter, m *command.Message) error {
+	out := &bytes.Buffer{}
+	for _, s := range scope.Order {
+		store := scoped.New(am.s, s, m.Channel, m.From)
+		aliases, err := store.List([]string{})
+		if err != nil {
+			return err
+		}
+
+		if len(aliases) > 0 {
+			fmt.Fprintf(out, "Aliases %s\n", s.Describe(m.Channel, m.From))
+			tw := new(tabwriter.Writer)
+			tw.Init(out, 0, 8, 1, '\t', 0)
+			for _, k := range aliases {
+				a, ok, err := store.Get(k)
+				if !ok || err != nil {
+					continue
+				}
+				fmt.Fprintf(tw, "  %s\t -> %s\n", k[0], a)
+			}
+			tw.Flush()
+		} else {
+			fmt.Fprintf(out, "No aliases %s\n", s.Describe(m.Channel, m.From))
+		}
+	}
+	io.Copy(w, out)
 
 	return nil
 }

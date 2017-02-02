@@ -66,7 +66,7 @@ func (s *Store) List(key []string) ([][]string, error) {
 	ks := [][]string{}
 	for k := range s.data {
 		if strings.HasPrefix(string(k), pfx) {
-			ks = append(ks, pathToKey(string(k[len(key):])))
+			ks = append(ks, pathToKey(k))
 		}
 	}
 	return ks, nil

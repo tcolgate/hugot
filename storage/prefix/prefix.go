@@ -27,7 +27,16 @@ func (p Store) Get(key []string) (string, bool, error) {
 
 // List lists all the keys with the given suffix
 func (p Store) List(key []string) ([][]string, error) {
-	return p.base.List(append(p.pfx, key...))
+	keys, err := p.base.List(append(p.pfx, key...))
+	if err != nil {
+		return keys, err
+	}
+
+	outkeys := [][]string{}
+	for _, k := range keys {
+		outkeys = append(outkeys, k[len(p.pfx):])
+	}
+	return outkeys, nil
 }
 
 // Set sets  a key in the store.

@@ -18,12 +18,45 @@ const (
 	ChannelUser
 )
 
+// String implements String
+func (s Scope) String() string {
+	switch s {
+	case Global:
+		return "Global"
+	case Channel:
+		return "Channel"
+	case ChannelUser:
+		return "Channel+User"
+	case User:
+		return "User"
+	default:
+		return fmt.Sprintf("Scope(%d)", s)
+	}
+}
+
 // Order is a predefined order to search scopes
 var Order = []Scope{
 	ChannelUser,
 	User,
 	Channel,
 	Global,
+}
+
+// Describe provides a human readable description of
+// a scope.
+func (s Scope) Describe(channel, user string) string {
+	switch s {
+	case Global:
+		return fmt.Sprintf("set globally")
+	case Channel:
+		return fmt.Sprintf("for channel %s", channel)
+	case ChannelUser:
+		return fmt.Sprintf("for user %s in channel %s", user, channel)
+	case User:
+		return fmt.Sprintf("for user %s", user)
+	default:
+		return fmt.Sprintf("in unknown scope Scope(%d)", s)
+	}
 }
 
 // Key returns the key for a the scope
