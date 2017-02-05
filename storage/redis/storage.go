@@ -1,9 +1,6 @@
 package redis
 
 import (
-	"time"
-
-	"github.com/golang/glog"
 	"github.com/tcolgate/hugot/storage"
 	redis "gopkg.in/redis.v5"
 )
@@ -20,13 +17,20 @@ func New(opts *redis.Options) *Store {
 
 // Get retries a key from the store
 func (s *Store) Get(key []string) (string, bool, error) {
-	val, err := s.cli.Get(storage.PathToKey(key)).Result()
-	if err != nil {
-		glog.Info(err)
-		return val, false, err
+	exists, err := s.cli.Exists(storage.PathToKey(key)).Result()
+	if err != redis.Nil && err != nil {
+		return "", false, err
+	}
+	if !exists {
+		return "", false, nil
 	}
 
-	return val, true, err
+	val, err := s.cli.Get(storage.PathToKey(key)).Result()
+	if err != redis.Nil && err != nil {
+		return "", false, err
+	}
+
+	return val, true, nil
 }
 
 // List all items under the provided prefix
@@ -37,7 +41,7 @@ func (s *Store) List(path []string) ([][]string, error) {
 		var keys []string
 		var err error
 		keys, cursor, err = s.cli.Scan(cursor, storage.PathToKey(path)+"/*", 100).Result()
-		if err != nil {
+		if err != redis.Nil && err != nil {
 			return nil, err
 		}
 		for _, key := range keys {
@@ -53,10 +57,18 @@ func (s *Store) List(path []string) ([][]string, error) {
 
 // Set a key in the store
 func (s *Store) Set(path []string, value string) error {
-	return s.cli.Set(storage.PathToKey(path), value, 1000000*time.Hour).Err()
+	err := s.cli.Set(storage.PathToKey(path), value, 0).Err()
+	if err != redis.Nil && err != nil {
+		return err
+	}
+	return nil
 }
 
 // Unset a key in the store
 func (s *Store) Unset(path []string) error {
-	return s.cli.Del(storage.PathToKey(path)).Err()
+	err := s.cli.Del(storage.PathToKey(path)).Err()
+	if err != redis.Nil && err != nil {
+		return err
+	}
+	return nil
 }
