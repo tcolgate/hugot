@@ -1,10 +1,10 @@
 package memory
 
 import (
-	"fmt"
-	"net/url"
 	"strings"
 	"sync"
+
+	"github.com/tcolgate/hugot/storage"
 )
 
 // Store implements a simple memory store over a map
@@ -22,71 +22,46 @@ func New() *Store {
 	}
 }
 
-func keyToPath(key []string) string {
-	if len(key) == 0 {
-		return ""
-	}
-	str := url.QueryEscape(key[0])
-	for i := range key[1:] {
-		str += "/" + url.QueryEscape(key[1+i])
-	}
-	return str
-}
-
-func pathToKey(path string) []string {
-	parts := strings.Split(path, "/")
-	key := []string{}
-	for i := range parts {
-		ki, err := url.QueryUnescape(parts[i])
-		if err != nil {
-			panic(fmt.Errorf("invalid key path path"))
-		}
-
-		key = append(key, ki)
-	}
-	return key
-}
-
 // Get retries a key from the store
-func (s *Store) Get(key []string) (string, bool, error) {
+func (s *Store) Get(path []string) (string, bool, error) {
 	s.RLock()
 	defer s.RUnlock()
 
-	v, ok := s.data[keyToPath(key)]
+	v, ok := s.data[storage.PathToKey(path)]
 	return v, ok, nil
 }
 
 // List all items under the provided prefix
-func (s *Store) List(key []string) ([][]string, error) {
+func (s *Store) List(path []string) ([][]string, error) {
 	s.RLock()
 	defer s.RUnlock()
 
-	pfx := keyToPath(key)
+	pfx := storage.PathToKey(path)
 
 	ks := [][]string{}
 	for k := range s.data {
 		if strings.HasPrefix(string(k), pfx) {
-			ks = append(ks, pathToKey(k))
+			ks = append(ks, storage.KeyToPath(k))
 		}
 	}
 	return ks, nil
 }
 
 // Set a key in the store
-func (s *Store) Set(key []string, value string) error {
+func (s *Store) Set(path []string, value string) error {
 	s.Lock()
 	defer s.Unlock()
 
-	s.data[keyToPath(key)] = value
+	s.data[storage.PathToKey(path)] = value
 
 	return nil
 }
 
 // Unset a key in the store
-func (s *Store) Unset(key []string) error {
+func (s *Store) Unset(path []string) error {
 	s.Lock()
 	defer s.Unlock()
 
-	delete(s.data, keyToPath(key))
+	delete(s.data, storage.PathToKey(path))
 	return nil
 }

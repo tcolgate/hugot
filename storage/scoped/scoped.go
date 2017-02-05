@@ -1,10 +1,6 @@
 package scoped
 
 import (
-	"fmt"
-	"net/url"
-	"strings"
-
 	"github.com/tcolgate/hugot/scope"
 	"github.com/tcolgate/hugot/storage"
 	"github.com/tcolgate/hugot/storage/prefix"
@@ -20,31 +16,6 @@ type Store struct {
 func New(base storage.Storer, s scope.Scope, channel, user string) *Store {
 	key := s.Key(channel, user)
 	return &Store{prefix.New(base, []string{key})}
-}
-
-func keyToPath(key []string) string {
-	if len(key) == 0 {
-		return ""
-	}
-	str := url.QueryEscape(key[0])
-	for i := range key[1:] {
-		str += "/" + url.QueryEscape(key[1+i])
-	}
-	return str
-}
-
-func pathToKey(path string) []string {
-	parts := strings.Split(path, "/")
-	key := []string{}
-	for i := range parts {
-		ki, err := url.QueryUnescape(parts[i])
-		if err != nil {
-			panic(fmt.Errorf("invalid key path path"))
-		}
-
-		key = append(key, ki)
-	}
-	return key
 }
 
 // Get retries a key from the store
