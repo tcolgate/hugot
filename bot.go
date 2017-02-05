@@ -29,6 +29,7 @@ import (
 )
 
 var DefaultHandler Handler
+var DefaultStore storage.Storer
 
 // ListenAndServe runs the handler h, passing all messages to/from
 // the provided adapter. The context may be used to gracefully shut
@@ -84,7 +85,7 @@ func ListenAndServe(ctx context.Context, h Handler, a Adapter, as ...Adapter) {
 	for {
 		select {
 		case mrw := <-mrws:
-			mrw.m.Store = prefix.New(storage.DefaultStore, []string{hn})
+			mrw.m.Store = prefix.New(DefaultStore, []string{hn})
 			go func(smrw) {
 				if err := h.ProcessMessage(ctx, mrw.w, mrw.m); err != nil {
 					mrw.w.Send(ctx, mrw.m.Replyf("%v\n", err))

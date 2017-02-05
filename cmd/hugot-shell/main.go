@@ -31,6 +31,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	bot "github.com/tcolgate/hugot"
 	"github.com/tcolgate/hugot/adapters/shell"
+	"github.com/tcolgate/hugot/storage/redis"
 
 	"github.com/tcolgate/hugot"
 
@@ -45,7 +46,7 @@ import (
 	"github.com/tcolgate/hugot/handlers/help"
 	"github.com/tcolgate/hugot/handlers/mux"
 	"github.com/tcolgate/hugot/handlers/roles"
-	"github.com/tcolgate/hugot/storage/memory"
+	goredis "gopkg.in/redis.v5"
 )
 
 var nick = flag.String("nick", "minion", "Bot nick")
@@ -80,8 +81,14 @@ func main() {
 	command.DefaultSet.MustAdd(ping.New())
 	command.DefaultSet.MustAdd(help.New(mux.DefaultMux))
 
-	hugot.DefaultHandler = alias.New(hugot.DefaultHandler, command.DefaultSet, memory.New())
-	hugot.DefaultHandler = roles.New(hugot.DefaultHandler, command.DefaultSet, memory.New())
+	redisOpts, err := goredis.ParseURL("redis://localhost:6379")
+	if err != nil {
+		glog.Fatal(err)
+	}
+
+	hugot.DefaultStore = redis.New(redisOpts)
+	hugot.DefaultHandler = alias.New(hugot.DefaultHandler, command.DefaultSet, hugot.DefaultStore)
+	hugot.DefaultHandler = roles.New(hugot.DefaultHandler, command.DefaultSet, hugot.DefaultStore)
 
 	u, _ := url.Parse("http://localhost:8080")
 	mux.SetURL(u)

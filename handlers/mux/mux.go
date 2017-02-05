@@ -162,7 +162,7 @@ func (mx *Mux) ProcessMessage(ctx context.Context, w hugot.ResponseWriter, m *hu
 			if ms := hh.Hears().FindAllStringSubmatch(m.Text, -1); ms != nil {
 				nm := m.Copy()
 				hn, _ := hh.Describe()
-				nm.Store = prefix.New(storage.DefaultStore, []string{hn})
+				nm.Store = prefix.New(hugot.DefaultStore, []string{hn})
 				err = hh.Heard(ctx, w, nm, ms)
 			}
 		}
