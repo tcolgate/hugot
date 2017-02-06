@@ -22,7 +22,6 @@ import (
 
 	"github.com/nlopes/slack"
 	"github.com/tcolgate/hugot/storage"
-	"github.com/tcolgate/hugot/storage/prefix"
 )
 
 // Message describes a Message from or to a user. It is intended to
@@ -73,10 +72,4 @@ func (m *Message) Reply(txt string) *Message {
 // and the from/to fields switched.
 func (m *Message) Replyf(s string, is ...interface{}) *Message {
 	return m.Reply(fmt.Sprintf(s, is...))
-}
-
-// Properties are used to associate scoped key/value data
-// with a message
-func (m *Message) Properties() PropertyStore {
-	return NewPropertyStore(prefix.New(m.Store, []string{"props"}), m)
 }

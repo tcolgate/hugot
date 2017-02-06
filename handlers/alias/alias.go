@@ -33,6 +33,7 @@ import (
 	"github.com/tcolgate/hugot/scope"
 	"github.com/tcolgate/hugot/storage"
 	"github.com/tcolgate/hugot/storage/prefix"
+	"github.com/tcolgate/hugot/storage/properties"
 	"github.com/tcolgate/hugot/storage/scoped"
 )
 
@@ -74,7 +75,7 @@ func (h *Alias) ProcessMessage(ctx context.Context, w hugot.ResponseWriter, m *h
 }
 
 func (h *Alias) execAlias(ctx context.Context, w hugot.ResponseWriter, m *hugot.Message) error {
-	props := hugot.NewPropertyStore(h.s, m)
+	props := properties.NewPropertyStore(h.s, m)
 
 	parts := strings.SplitN(m.Text, " ", 2)
 	if len(parts) != 1 && len(parts) != 2 {

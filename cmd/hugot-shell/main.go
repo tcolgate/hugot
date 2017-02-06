@@ -79,6 +79,7 @@ func main() {
 	command.DefaultSet.MustAdd(testcli.New())
 	command.DefaultSet.MustAdd(uptime.New())
 	command.DefaultSet.MustAdd(ping.New())
+
 	command.DefaultSet.MustAdd(help.New(mux.DefaultMux))
 
 	redisOpts, err := goredis.ParseURL("redis://localhost:6379")

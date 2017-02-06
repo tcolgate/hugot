@@ -1,6 +1,10 @@
-package hugot
+// Package properties implements a layer on top of the scoped
+// store. It combineds a store for each scope as a single store,
+// and allows the stores to be search either as one, or individually.
+package properties
 
 import (
+	"github.com/tcolgate/hugot"
 	"github.com/tcolgate/hugot/scope"
 	"github.com/tcolgate/hugot/storage"
 	"github.com/tcolgate/hugot/storage/scoped"
@@ -10,12 +14,12 @@ import (
 // dependent on a scope
 type PropertyStore struct {
 	store storage.Storer
-	m     *Message
+	m     *hugot.Message
 }
 
 // NewPropertyStore uese the provided store to store properties,
 // under a prefix pfx
-func NewPropertyStore(s storage.Storer, m *Message) PropertyStore {
+func NewPropertyStore(s storage.Storer, m *hugot.Message) PropertyStore {
 	return PropertyStore{s, m}
 }
 

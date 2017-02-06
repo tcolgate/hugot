@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	shellwords "github.com/mattn/go-shellwords"
-	"github.com/tcolgate/hugot"
 )
 
 // Copy can be used to copy a command.Mesage
@@ -49,10 +48,4 @@ func (m *Message) Parse() error {
 	err = m.FlagSet.Parse(m.args[1:])
 	m.args = m.FlagSet.Args()
 	return err
-}
-
-// Properties are used to associate scoped key/value data
-// with a message
-func (m *Message) Properties() hugot.PropertyStore {
-	return m.Message.Properties()
 }
