@@ -1,3 +1,11 @@
+// Package scoped implements scoping for a hugot Store. It
+// take another store and adds prefixes that are private to
+// various scopes.
+//
+// - scope.Global data is seen by all users in all channels.
+// - scope.Channel data is private to the current channel.
+// - scope.ChannelUser is private for this user in this channel.
+// - scope.User is private to this user.
 package scoped
 
 import (

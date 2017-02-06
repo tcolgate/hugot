@@ -26,22 +26,26 @@ import (
 	"github.com/tcolgate/hugot"
 )
 
-func New() *testweb {
+// New create an instance of the example webhook handler.
+func New() *TestWeb {
 
-	return &testweb{
+	return &TestWeb{
 		hugot.NewWebHookHandler("testweb", "says hello from the world wide web", handleWeb),
 	}
 }
 
-type testweb struct {
+// TestWeb is a simple example of a handler that gets traffic from a web hook.
+type TestWeb struct {
 	hugot.WebHookHandler
 }
 
-func (t *testweb) Describe() (string, string) {
+// Describe returns the name and description of the hook.
+func (t *TestWeb) Describe() (string, string) {
 	return "testweb", "Get url of testweb"
 }
 
-func (t *testweb) Command(ctx context.Context, w hugot.ResponseWriter, m *hugot.Message) error {
+// Command implements a simple command that returns the URL of the hook to the users.
+func (t *TestWeb) Command(ctx context.Context, w hugot.ResponseWriter, m *hugot.Message) error {
 	fmt.Fprintf(w, "url is %s", t.URL())
 	return nil
 }

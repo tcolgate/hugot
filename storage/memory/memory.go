@@ -1,3 +1,6 @@
+// Package memory implements a hugot store in memory.
+// This is mainly intended for testing. It does not persist
+// the data in any way.
 package memory
 
 import (

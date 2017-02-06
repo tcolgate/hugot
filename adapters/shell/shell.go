@@ -32,31 +32,40 @@ import (
 	"github.com/chzyer/readline"
 )
 
-type shell struct {
+// Shell is an adapter that operatoes as a command line interface for
+// testing bots.
+type Shell struct {
 	nick string
 	user string
 	rch  chan *hugot.Message
 	sch  chan *hugot.Message
 }
 
-func New(nick string) (*shell, error) {
+// New constructs anew shell adapter. The bot will respond with user
+// nick.
+func New(nick string) (*Shell, error) {
 	rch := make(chan *hugot.Message)
 	sch := make(chan *hugot.Message)
-	return &shell{nick, os.Getenv("USER"), rch, sch}, nil
+	return &Shell{nick, os.Getenv("USER"), rch, sch}, nil
 }
 
-func (s *shell) IsTextOnly() {
+// IsTextOnly help hint that this is a test-only adapter.
+func (s *Shell) IsTextOnly() {
 }
 
-func (s *shell) Send(ctx context.Context, m *hugot.Message) {
+// Send is used to send this adapter a message.
+func (s *Shell) Send(ctx context.Context, m *hugot.Message) {
 	s.sch <- m
 }
 
-func (s *shell) Receive() <-chan *hugot.Message {
+// Receive is used to retrieve a mesage from the bot.
+func (s *Shell) Receive() <-chan *hugot.Message {
 	return s.rch
 }
 
-func (s *shell) Main() {
+// Main can be used to run this adapter as the main() function
+// of a program.
+func (s *Shell) Main() {
 	rl, err := readline.NewEx(&readline.Config{
 		UniqueEditLine: false,
 	})
@@ -78,7 +87,6 @@ func (s *shell) Main() {
 				break
 			}
 		}
-		done <- struct{}{}
 	}()
 
 	for {

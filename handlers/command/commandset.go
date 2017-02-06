@@ -18,6 +18,8 @@ import (
 var DefaultSet = NewSet()
 
 // Set assists with supporting command handlers with sub-commands.
+// A set can also be used as the initial ToBot handler of a Mux to
+// provide users an set of interactive CLI style commands.
 type Set map[string]Commander
 
 // NewSet creates an empty commands set.
@@ -173,11 +175,14 @@ func (s Set) ProcessMessage(ctx context.Context, w hugot.ResponseWriter, hm *hug
 	return err
 }
 
+// Helper defines an interface for handlers that wish to be able to
+// provide help via the help command (see handlers/help)
 type Helper interface {
 	Help(ctx context.Context, w io.Writer, m *Message) error
 }
 
-// Help
+// Help passes the help request on to the next suitable command in the Set.
+// The argument should be a unique prefix of one of the Set's commands.
 func (s Set) Help(ctx context.Context, w io.Writer, m *Message) error {
 	if len(m.Args()) != 0 {
 		ch, err := s.NextCommand(m)

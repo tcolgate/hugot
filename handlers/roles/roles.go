@@ -15,6 +15,9 @@
 // You should have received a copy of the GNU General Public License
 // along with   If not, see <http://www.gnu.org/licenses/>.
 
+// Package roles is intended to provide Roles Based access controls
+// for users and channels. This is a work in progress, and is likely
+// to chnage.
 package roles
 
 import (

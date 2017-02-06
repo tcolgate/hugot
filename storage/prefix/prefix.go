@@ -1,3 +1,8 @@
+// Package prefix implements a hugot Storer that wraps
+// another store and ddds an additional prefix to all keys.
+//
+// This can be used to force handles to write data under
+// another key.
 package prefix
 
 import "github.com/tcolgate/hugot/storage"

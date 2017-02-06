@@ -17,7 +17,7 @@
 
 // Package mattermost implements an adapter for http://mm.com using
 // github.com/nlopes/mm
-package mm
+package mattermost
 
 import (
 	"fmt"

@@ -1,3 +1,7 @@
+// Package scope describes hugot's mesage scoping. This can be used
+// for various purpose.
+// - Store data that is user or channel specific (see handlers/alias)
+// - Define which users have rights to perform cert actions (see handlers/roles)
 package scope
 
 import "fmt"

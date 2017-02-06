@@ -15,6 +15,8 @@
 // You should have received a copy of the GNU General Public License
 // along with   If not, see <http://www.gnu.org/licenses/>.
 
+// Package alias imeplements user customizable aliases for commands. The user
+// can set their own aliases, per channel, or system wide.
 package alias
 
 import (
@@ -34,27 +36,28 @@ import (
 	"github.com/tcolgate/hugot/storage/scoped"
 )
 
-// AliasHandler implements alias support for use by Mux
-type AliasHandler struct {
+// Alias implements alias support for use by Mux
+type Alias struct {
 	up hugot.Handler
 	cs command.Set
 	s  storage.Storer
 }
 
-// New creates a new alias handler and registers as a command on
-// the Mux
+// New creates a new alias handler and registers the alias command
+// with the the Mux, to permit users to manage their aliases.
 func New(up hugot.Handler, cs command.Set, s storage.Storer) hugot.Handler {
 	store := prefix.New(s, []string{"aliases"})
 	cs.MustAdd(&aliasManager{store})
 
-	return &AliasHandler{
+	return &Alias{
 		cs: cs,
 		up: up,
 		s:  store,
 	}
 }
 
-func (h *AliasHandler) Describe() (string, string) {
+// Describe returns the name and description of the handler.
+func (h *Alias) Describe() (string, string) {
 	return h.up.Describe()
 }
 
@@ -62,7 +65,7 @@ func (h *AliasHandler) Describe() (string, string) {
 // it looks for aliases in the properties of the message. If a suitable alias
 // is found, that is executed. It also adds an alias manager command for
 // managing the set of aliases
-func (h *AliasHandler) ProcessMessage(ctx context.Context, w hugot.ResponseWriter, m *hugot.Message) error {
+func (h *Alias) ProcessMessage(ctx context.Context, w hugot.ResponseWriter, m *hugot.Message) error {
 	err := h.up.ProcessMessage(ctx, w, m)
 	if err == command.ErrUnknownCommand {
 		return h.execAlias(ctx, w, m)
@@ -70,7 +73,7 @@ func (h *AliasHandler) ProcessMessage(ctx context.Context, w hugot.ResponseWrite
 	return err
 }
 
-func (h *AliasHandler) execAlias(ctx context.Context, w hugot.ResponseWriter, m *hugot.Message) error {
+func (h *Alias) execAlias(ctx context.Context, w hugot.ResponseWriter, m *hugot.Message) error {
 	props := hugot.NewPropertyStore(h.s, m)
 
 	parts := strings.SplitN(m.Text, " ", 2)

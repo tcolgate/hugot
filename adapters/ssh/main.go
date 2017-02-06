@@ -1,3 +1,6 @@
+// Package ssh implements an adapter that serves SSH connections. Users
+// can ssh into the bot o interact with it. Thsi is purely a toy adapter
+// at this time.
 package ssh
 
 import (
@@ -18,7 +21,8 @@ import (
 	"golang.org/x/crypto/ssh/terminal"
 )
 
-type sshAdpt struct {
+// SSH implements an SSH adapter.
+type SSH struct {
 	nick string
 
 	listener net.Listener
@@ -32,15 +36,15 @@ type sshAdpt struct {
 	schs map[string]chan *hugot.Message
 }
 
-func (a *sshAdpt) runOnce() {
+func (a *SSH) runOnce() {
 	a.running.Do(func() {
 		a.run()
 	})
 }
 
 // New creates a new SSH Adapter
-func New(nick string, l net.Listener, cfg *ssh.ServerConfig) *sshAdpt {
-	return &sshAdpt{
+func New(nick string, l net.Listener, cfg *ssh.ServerConfig) *SSH {
+	return &SSH{
 		nick,
 		l,
 		cfg,
@@ -53,13 +57,15 @@ func New(nick string, l net.Listener, cfg *ssh.ServerConfig) *sshAdpt {
 	}
 }
 
-func (a *sshAdpt) Receive() <-chan *hugot.Message {
+// Receive can be used to receieve message from users.
+func (a *SSH) Receive() <-chan *hugot.Message {
 	go a.run()
 
 	return a.rch
 }
 
-func (a *sshAdpt) Send(ctx context.Context, m *hugot.Message) {
+// Send can be used to Send responses back to users.
+func (a *SSH) Send(ctx context.Context, m *hugot.Message) {
 	go a.run()
 
 	a.RLock()
@@ -74,7 +80,7 @@ func (a *sshAdpt) Send(ctx context.Context, m *hugot.Message) {
 	sch <- m
 }
 
-func (a *sshAdpt) run() {
+func (a *SSH) run() {
 	for {
 		tcpConn, err := a.listener.Accept()
 		if err != nil {
@@ -111,14 +117,14 @@ func (a *sshAdpt) run() {
 	}
 }
 
-func (a *sshAdpt) handleChannels(chans <-chan ssh.NewChannel, sshConn ssh.Conn) {
+func (a *SSH) handleChannels(chans <-chan ssh.NewChannel, sshConn ssh.Conn) {
 	// Service the incoming Channel channel in go routine
 	for newChannel := range chans {
 		go a.handleChannel(newChannel, sshConn)
 	}
 }
 
-func (a *sshAdpt) handleChannel(newChannel ssh.NewChannel, sshConn ssh.Conn) {
+func (a *SSH) handleChannel(newChannel ssh.NewChannel, sshConn ssh.Conn) {
 	if t := newChannel.ChannelType(); t != "session" {
 		newChannel.Reject(ssh.UnknownChannelType, fmt.Sprintf("unknown channel type: %s", t))
 		return
@@ -156,7 +162,6 @@ func (a *sshAdpt) handleChannel(newChannel ssh.NewChannel, sshConn ssh.Conn) {
 				break
 			}
 		}
-		done <- struct{}{}
 	}()
 
 	// Sessions have out-of-band requests such as "shell", "pty-req" and "env"

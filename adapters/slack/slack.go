@@ -15,7 +15,7 @@
 // You should have received a copy of the GNU General Public License
 // along with hugot.  If not, see <http://www.gnu.org/licenses/>.
 
-// Package slac implements an adapter for http://slack.com using
+// Package slack implements an adapter for http://slack.com using
 // github.com/nlopes/slack
 package slack
 

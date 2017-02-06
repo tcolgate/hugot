@@ -1,3 +1,5 @@
+// Package storage describes an interface for storing of hugot
+// handler data in a Key/Value store.
 package storage
 
 import (
@@ -15,6 +17,8 @@ type Storer interface {
 	Unset(key []string) error
 }
 
+// PathToKey takes a storage path and translate it to a flat
+// key usable in a KV store.
 func PathToKey(path []string) string {
 	if len(path) == 0 {
 		return ""
@@ -26,6 +30,8 @@ func PathToKey(path []string) string {
 	return str
 }
 
+// KeyToPath takes string from PathToKey and reverts it to a
+// structured key.
 func KeyToPath(key string) []string {
 	parts := strings.Split(key, "/")
 	var path []string

@@ -1,3 +1,4 @@
+// Package command provides CLI style interactive commands.
 package command
 
 import (
