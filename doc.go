@@ -38,26 +38,26 @@
 //
 // Handlers process messages. There are a several built in handler types:
 //
-// RawHandlers will execute for every message sent to them.
+// - Plain Handlers will execute for every message sent to them.
 //
-// Background handlers, are started when the bot is started. They do not
+// - Background handlers, are started when a bot is started. They do not
 // receive messages but can send them. They are intended to implement long
 // lived background tasks that react to external inputs.
 //
-// WebHook handlers can be used to implement web hooks by adding the bot to a
-// http.ServeMux. A URL is build from the name of the handler.
+// - WebHook handlers can be used to implement web hooks by adding the bot to a
+// http.ServeMux. A URL is built from the name of the handler.
 //
-// HearsHandlers will execute for any message which matches a given regular
+// In addition to these basic handlers some more complex handlers are supplied.
+//
+// - Hears Handlers will execute for any message which matches a given regular
 // expression.
 //
-// Command Handlers act on any direct message. Message are attempted to be
+// - Command Handlers act as command line tools. Message are attempted to be
 // processed as a command line. Quoted text is handle as a single argument. The
-// passed message can be used as a flag.FlagSet
+// passed message can be used as a flag.FlagSet.
 //
-// Mux
-//
-// The Mux will multiplex message across a set of handlers. In addition, a top
-// level "help" Command handler is added to provide help on usage of the
+// - A Mux. The Mux will multiplex message across a set of handlers. In addition,
+// a top level "help" Command handler is added to provide help on usage of the
 // various handlers added to the Mux.
 //
 // WARNING: The API is still subject to change.

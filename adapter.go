@@ -45,15 +45,6 @@ func IsTextOnly(s Sender) bool {
 	return ok
 }
 
-// User represents a user within the chat sytems. The adapter is responsible
-// for translating the string User to and from it's external representation
-type User string
-
-// Channel represents discussion channel, such as an IRC channel or
-// Slack channel. The Adapter is responsible for translating between a human
-// name for the channel, and any internal representation
-type Channel string
-
 // Adapter can be used to communicate with an external chat system such as
 // slack or IRC.
 type Adapter interface {
