@@ -19,7 +19,6 @@ package mux
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -39,18 +38,6 @@ import (
 
 	"context"
 )
-
-// DefaultMux is a default instance of amux
-var DefaultMux = New("hugot", "")
-
-func init() {
-	http.Handle("/hugot", DefaultMux)
-	http.Handle("/hugot/", DefaultMux)
-
-	hugot.DefaultHandler = DefaultMux
-
-	DefaultMux.ToBot = command.DefaultSet
-}
 
 // Mux is a Handler that multiplexes messages to a set of Command, Hears, and
 // Raw handlers.
@@ -162,18 +149,13 @@ func (mx *Mux) ProcessMessage(ctx context.Context, w hugot.ResponseWriter, m *hu
 			if ms := hh.Hears().FindAllStringSubmatch(m.Text, -1); ms != nil {
 				nm := m.Copy()
 				hn, _ := hh.Describe()
-				nm.Store = prefix.New(hugot.DefaultStore, []string{hn})
+				nm.Store = prefix.New(mx.store, []string{hn})
 				err = hh.Heard(ctx, w, nm, ms)
 			}
 		}
 	}
 
 	return err
-}
-
-// Raw adds the provided handler to the DefaultMux
-func Raw(hs ...hugot.Handler) error {
-	return DefaultMux.Raw(hs...)
 }
 
 // Raw adds the provided handlers to the Mux. All
@@ -187,11 +169,6 @@ func (mx *Mux) Raw(hs ...hugot.Handler) error {
 	return nil
 }
 
-// Background adds the provided handler to the DefaultMux
-func Background(hs ...hugot.BackgroundHandler) error {
-	return DefaultMux.Background(hs...)
-}
-
 // Background adds the provided handler to the Mux. It
 // will be started with the Mux is started.
 func (mx *Mux) Background(hs ...hugot.BackgroundHandler) error {
@@ -201,11 +178,6 @@ func (mx *Mux) Background(hs ...hugot.BackgroundHandler) error {
 	mx.BGHandlers = append(mx.BGHandlers, hs...)
 
 	return nil
-}
-
-// Hears adds the provided handler to the DefaultMux
-func Hears(hs ...hears.Hearer) error {
-	return DefaultMux.Hears(hs...)
 }
 
 // Hears adds the provided handler to the mux. all
@@ -231,11 +203,6 @@ func (whb *webHookBridge) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		glog.Infof("webHookBridge ServeHTTP %v %s\n", *whb, *r)
 	}
 	whb.nh.ServeHTTP(w, r)
-}
-
-// HandleHTTP adds the provided handler to the DefaultMux
-func HandleHTTP(h hugot.WebHookHandler) {
-	DefaultMux.HandleHTTP(h)
 }
 
 // HandleHTTP registers h as a WebHook handler. The name
@@ -270,11 +237,6 @@ func (mx *Mux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	mx.httpm.ServeHTTP(w, r)
 }
 
-// URL returns the base URL for the default Mux
-func URL() *url.URL {
-	return DefaultMux.URL()
-}
-
 // URL returns the base URL for this Mux
 func (mx *Mux) URL() *url.URL {
 	mx.RLock()
@@ -284,14 +246,6 @@ func (mx *Mux) URL() *url.URL {
 
 func (mx *Mux) url() *url.URL {
 	return mx.burl
-}
-
-// SetURL sets the base URL for web hooks.
-func SetURL(b *url.URL) {
-	if b.Path != "" {
-		panic(errors.New("Can't set URL with path at the moment, sorry"))
-	}
-	DefaultMux.SetURL(b)
 }
 
 // SetURL sets the base URL for this mux's web hooks.
@@ -385,34 +339,3 @@ func (mx *Mux) cmdHelp(ctx context.Context, w io.Writer, m *command.Message) err
 
 	return nil
 }
-
-/*
-
-func cmdUsage(c command.Commander, cmdStr string, err error) error {
-	_, desc := c.Describe()
-	m := &command.Message{}}
-	m.FlagOut = &bytes.Buffer{}
-	m.FlagSet = flag.NewFlagSet(cmdStr, flag.ContinueOnError)
-	m.FlagSet.SetOutput(m.FlagOut)
-
-	c.Command(context.TODO(), hugot.NewNullResponseWriter(*m.Message), m)
-	if subcx, ok := c.(command.CommanderWithSubs); ok {
-		subs := subcx.SubCommands()
-		if subs != nil && len(subs) > 0 {
-			fmt.Fprintf(m.FlagOut, "  Sub commands:\n")
-			for n, s := range subs {
-				_, desc := s.Describe()
-				fmt.Fprintf(m.FlagOut, "    %s - %s\n", n, desc)
-			}
-		}
-	}
-
-	str := ""
-	if err != nil {
-		str = fmt.Sprintf("error, %s\n", err.Error())
-	} else {
-		str = fmt.Sprintf("Description: %s\n", desc)
-	}
-	return command.ErrUsage(str + m.FlagOut.String())
-}
-*/

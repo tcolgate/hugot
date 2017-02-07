@@ -47,7 +47,7 @@ type Handler interface {
 // NewNullResponseWriter creates a ResponseWriter that discards all
 // message sent to it.
 func NewNullResponseWriter(m Message) ResponseWriter {
-	return newResponseWriter(nullSender{}, m, "null")
+	return NewResponseWriter(nullSender{}, m, "null")
 }
 
 // ResponseWriter is used to Send messages back to a user.
@@ -68,8 +68,10 @@ type responseWriter struct {
 	an  string
 }
 
-func newResponseWriter(s Sender, m Message, an string) ResponseWriter {
-	return &responseWriter{s, m, an}
+// NewResponseWriter creates a response writer that will send mesages via the
+// provided sender.
+func NewResponseWriter(s Sender, m Message, adapterName string) ResponseWriter {
+	return &responseWriter{s, m, adapterName}
 }
 
 // ResponseWriterFromContext constructs a ResponseWriter from the adapter
@@ -81,7 +83,7 @@ func ResponseWriterFromContext(ctx context.Context) (ResponseWriter, bool) {
 		return nil, false
 	}
 	an := fmt.Sprintf("%T", s)
-	return newResponseWriter(s, Message{}, an), true
+	return NewResponseWriter(s, Message{}, an), true
 }
 
 // Write implements the io.Writer interface. All writes create a single

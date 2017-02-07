@@ -14,9 +14,6 @@ import (
 	"github.com/tcolgate/hugot"
 )
 
-// DefaultSet provides the default commands for the DefaultMux
-var DefaultSet = NewSet()
-
 // Set assists with supporting command handlers with sub-commands.
 // A set can also be used as the initial ToBot handler of a Mux to
 // provide users an set of interactive CLI style commands.

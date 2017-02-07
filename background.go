@@ -1,10 +1,6 @@
 package hugot
 
-import (
-	"context"
-
-	"github.com/golang/glog"
-)
+import "context"
 
 // BackgroundHandler gets run when the bot starts listening. They are
 // intended for publishing messages that are not in response to any
@@ -12,16 +8,6 @@ import (
 type BackgroundHandler interface {
 	Describer
 	StartBackground(ctx context.Context, w ResponseWriter)
-}
-
-// runBackgroundHandler starts the provided BackgroundHandler in a new
-// go routine.
-func runBackgroundHandler(ctx context.Context, h BackgroundHandler, w ResponseWriter) {
-	glog.Infof("Starting background %v\n", h)
-	go func(ctx context.Context, bh BackgroundHandler) {
-		defer glogPanic()
-		h.StartBackground(ctx, w)
-	}(ctx, h)
 }
 
 type baseBackgroundHandler struct {
