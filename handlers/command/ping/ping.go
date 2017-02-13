@@ -25,6 +25,7 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/tcolgate/hugot"
+	"github.com/tcolgate/hugot/bot"
 	"github.com/tcolgate/hugot/handlers/command"
 )
 
@@ -49,4 +50,7 @@ func (*ping) Command(ctx context.Context, w hugot.ResponseWriter, m *command.Mes
 	fmt.Fprintf(w, "PONG!")
 
 	return nil
+}
+
+func Register(b *bot.Bot) {
 }

@@ -22,9 +22,11 @@ package roles
 
 import (
 	"context"
+	"io"
 
 	"github.com/tcolgate/hugot"
 	"github.com/tcolgate/hugot/handlers/command"
+	"github.com/tcolgate/hugot/handlers/help"
 	"github.com/tcolgate/hugot/storage"
 )
 
@@ -43,6 +45,13 @@ func New(up hugot.Handler, cs command.Set, s storage.Storer) *Handler {
 
 func (h *Handler) Describe() (string, string) {
 	return h.up.Describe()
+}
+
+func (h *Handler) Help(ctx context.Context, w io.Writer, m *command.Message) error {
+	if hh, ok := h.up.(help.Helper); ok {
+		return hh.Help(ctx, w, m)
+	}
+	return nil
 }
 
 type rolesCtxKeyType int

@@ -29,8 +29,8 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/prometheus/client_golang/prometheus"
-	bot "github.com/tcolgate/hugot"
 	"github.com/tcolgate/hugot/adapters/shell"
+	"github.com/tcolgate/hugot/bot"
 	"github.com/tcolgate/hugot/storage/redis"
 
 	"github.com/tcolgate/hugot"
@@ -38,13 +38,10 @@ import (
 	// Add some handlers
 
 	"github.com/tcolgate/hugot/handlers/alias"
-	"github.com/tcolgate/hugot/handlers/command"
 	"github.com/tcolgate/hugot/handlers/command/ping"
 	"github.com/tcolgate/hugot/handlers/command/testcli"
 	"github.com/tcolgate/hugot/handlers/command/uptime"
 	"github.com/tcolgate/hugot/handlers/hears/tableflip"
-	"github.com/tcolgate/hugot/handlers/help"
-	"github.com/tcolgate/hugot/handlers/mux"
 	"github.com/tcolgate/hugot/handlers/roles"
 	goredis "gopkg.in/redis.v5"
 )
@@ -71,30 +68,29 @@ func main() {
 		glog.Fatal(err)
 	}
 
-	mux.Background(hugot.NewBackgroundHandler("test bg", "testing bg", bgHandler))
-	mux.HandleHTTP(hugot.NewWebHookHandler("test", "test http", httpHandler))
+	bot.Background(hugot.NewBackgroundHandler("test bg", "testing bg", bgHandler))
+	bot.HandleHTTP(hugot.NewWebHookHandler("test", "test http", httpHandler))
 
-	mux.DefaultMux.Hears(tableflip.New())
+	bot.Hears(tableflip.New())
 
-	command.DefaultSet.MustAdd(testcli.New())
-	command.DefaultSet.MustAdd(uptime.New())
-	command.DefaultSet.MustAdd(ping.New())
-
-	command.DefaultSet.MustAdd(help.New(mux.DefaultMux))
+	bot.Command(testcli.New())
+	bot.Command(uptime.New())
+	bot.Command(ping.New())
 
 	redisOpts, err := goredis.ParseURL("redis://localhost:6379")
 	if err != nil {
 		glog.Fatal(err)
 	}
 
-	hugot.DefaultStore = redis.New(redisOpts)
-	hugot.DefaultHandler = alias.New(hugot.DefaultHandler, command.DefaultSet, hugot.DefaultStore)
-	hugot.DefaultHandler = roles.New(hugot.DefaultHandler, command.DefaultSet, hugot.DefaultStore)
+	bot.DefaultStore = redis.New(redisOpts)
+
+	bot.DefaultMux.ToBot = alias.New(bot.DefaultMux.ToBot, bot.DefaultCommands, bot.DefaultStore)
+	bot.DefaultMux.ToBot = roles.New(bot.DefaultMux.ToBot, bot.DefaultCommands, bot.DefaultStore)
 
 	u, _ := url.Parse("http://localhost:8080")
-	mux.SetURL(u)
+	bot.SetURL(u)
 
-	go bot.ListenAndServe(ctx, hugot.DefaultHandler, a)
+	go bot.ListenAndServe(ctx, nil, a)
 	http.Handle("/metrics", prometheus.Handler())
 	go http.ListenAndServe(":8081", nil)
 

@@ -30,6 +30,7 @@ import (
 
 	"github.com/tcolgate/hugot"
 	"github.com/tcolgate/hugot/handlers/command"
+	"github.com/tcolgate/hugot/handlers/help"
 	"github.com/tcolgate/hugot/scope"
 	"github.com/tcolgate/hugot/storage"
 	"github.com/tcolgate/hugot/storage/prefix"
@@ -72,6 +73,13 @@ func (h *Alias) ProcessMessage(ctx context.Context, w hugot.ResponseWriter, m *h
 		return h.execAlias(ctx, w, m)
 	}
 	return err
+}
+
+func (h *Alias) Help(ctx context.Context, w io.Writer, m *command.Message) error {
+	if hh, ok := h.up.(help.Helper); ok {
+		return hh.Help(ctx, w, m)
+	}
+	return nil
 }
 
 func (h *Alias) execAlias(ctx context.Context, w hugot.ResponseWriter, m *hugot.Message) error {

@@ -27,23 +27,44 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/tcolgate/hugot"
+	"github.com/tcolgate/hugot/handlers/command"
 	"github.com/tcolgate/hugot/handlers/hears"
+	"github.com/tcolgate/hugot/handlers/help"
 	"github.com/tcolgate/hugot/handlers/mux"
 	"github.com/tcolgate/hugot/storage"
+	"github.com/tcolgate/hugot/storage/memory"
 	"github.com/tcolgate/hugot/storage/prefix"
 
 	"golang.org/x/sync/errgroup"
 )
 
-type Bot struct {
-	store storage.Storer
-	*mux.Mux
-}
-
+// DefaultBot is a default instance of a bot
 var DefaultBot *Bot
+var DefaultMux *mux.Mux
+var DefaultCommands command.Set
+var DefaultStore storage.Storer
 
 func init() {
+
+	DefaultStore = memory.New()
+
+	http.Handle("/hugot", DefaultMux)
+	http.Handle("/hugot/", DefaultMux)
+
+	DefaultCommands = command.NewSet()
+
+	DefaultMux = mux.New("hugot", "")
+	DefaultMux.ToBot = DefaultCommands
+
+	DefaultCommands.MustAdd(help.New(DefaultMux))
+
 	DefaultBot = New()
+	DefaultBot.store = DefaultStore
+
+}
+
+type Bot struct {
+	store storage.Storer
 }
 
 func New() *Bot {
@@ -51,6 +72,7 @@ func New() *Bot {
 	return b
 }
 
+// ListenAndServe
 func ListenAndServe(ctx context.Context, h hugot.Handler, a hugot.Adapter, as ...hugot.Adapter) {
 	DefaultBot.ListenAndServe(ctx, h, a, as...)
 }
@@ -60,6 +82,10 @@ func ListenAndServe(ctx context.Context, h hugot.Handler, a hugot.Adapter, as ..
 // down the server.
 func (b *Bot) ListenAndServe(ctx context.Context, h hugot.Handler, a hugot.Adapter, as ...hugot.Adapter) {
 	ctx = hugot.NewAdapterContext(ctx, a)
+
+	if h == nil {
+		h = DefaultMux
+	}
 
 	an := fmt.Sprintf("%T", a)
 	if bh, ok := h.(hugot.BackgroundHandler); ok {
@@ -127,17 +153,9 @@ func runBackgroundHandler(ctx context.Context, h hugot.BackgroundHandler, w hugo
 	}(ctx, h)
 }
 
-// DefaultMux is a default instance of amux
-var DefaultMux = mux.New("hugot", "")
-
-func init() {
-	http.Handle("/hugot", DefaultMux)
-	http.Handle("/hugot/", DefaultMux)
-}
-
 // Raw adds the provided handler to the DefaultMux
 func Raw(hs ...hugot.Handler) error {
-	return DefaultBot.Raw(hs...)
+	return DefaultMux.Raw(hs...)
 }
 
 // Background adds the provided handler to the DefaultMux
@@ -166,4 +184,20 @@ func SetURL(b *url.URL) {
 		panic(errors.New("Can't set URL with path at the moment, sorry"))
 	}
 	DefaultMux.SetURL(b)
+}
+
+func Command(c command.Commander) {
+	DefaultCommands.MustAdd(c)
+}
+
+func Commands() command.Set {
+	return DefaultCommands
+}
+
+func Store() storage.Storer {
+	return DefaultBot.Store()
+}
+
+func (b *Bot) Store() storage.Storer {
+	return b.store
 }
