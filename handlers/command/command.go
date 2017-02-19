@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"flag"
+	"fmt"
 	"io"
 
 	shellwords "github.com/mattn/go-shellwords"
@@ -86,6 +87,8 @@ func (bch *Handler) ProcessMessage(ctx context.Context, w hugot.ResponseWriter, 
 
 	cm := &Message{}
 
+	_, hd := bch.Describe()
+
 	cm.args, err = shellwords.Parse(m.Text)
 	if err != nil {
 		return ErrBadCLI
@@ -99,6 +102,9 @@ func (bch *Handler) ProcessMessage(ctx context.Context, w hugot.ResponseWriter, 
 	cm.FlagOut = &bytes.Buffer{}
 	cm.FlagSet = flag.NewFlagSet(name, flag.ContinueOnError)
 	cm.FlagSet.SetOutput(cm.FlagOut)
+	cm.FlagSet.Usage = func() {
+		fmt.Printf("%s\n  %s", name, hd)
+	}
 
 	err = bch.Command(ctx, w, cm)
 	if len(cm.FlagOut.Bytes()) > 0 {

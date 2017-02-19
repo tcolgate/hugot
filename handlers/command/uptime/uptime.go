@@ -39,15 +39,14 @@ func New() command.Commander {
 	return command.New(
 		"uptime",
 		"report the uptime of the bot",
-		uptimeCommand)
-}
 
-func uptimeCommand(ctx context.Context, w hugot.ResponseWriter, m *command.Message) error {
-	if err := m.Parse(); err != nil {
-		return err
-	}
+		func(ctx context.Context, w hugot.ResponseWriter, m *command.Message) error {
+			if err := m.Parse(); err != nil {
+				return err
+			}
 
-	fmt.Fprintf(w, "I've been running for %s", time.Since(start))
+			fmt.Fprintf(w, "I've been running for %s", time.Since(start))
 
-	return nil
+			return nil
+		})
 }

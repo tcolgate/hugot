@@ -45,7 +45,9 @@ func (m *Message) Parse() error {
 		return ErrBadCLI
 	}
 
-	err = m.FlagSet.Parse(m.args[1:])
-	m.args = m.FlagSet.Args()
+	if len(m.args) > 0 {
+		err = m.FlagSet.Parse(m.args[1:])
+		m.args = m.FlagSet.Args()
+	}
 	return err
 }

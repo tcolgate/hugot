@@ -25,32 +25,23 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/tcolgate/hugot"
-	"github.com/tcolgate/hugot/bot"
 	"github.com/tcolgate/hugot/handlers/command"
 )
 
-type ping struct {
-}
-
 // New creates a new ping command that responds with a Pong
 func New() command.Commander {
-	return &ping{}
-}
+	return command.New("ping", "replies Pong to any ping", func(ctx context.Context, w hugot.ResponseWriter, m *command.Message) error {
+		if err := m.Parse(); err != nil {
+			return err
+		}
 
-func (*ping) Describe() (string, string) {
-	return "ping", "replies Pong to any ping"
-}
+		glog.Info("Got ping ", *m)
+		if err := m.Parse(); err != nil {
+			return err
+		}
 
-func (*ping) Command(ctx context.Context, w hugot.ResponseWriter, m *command.Message) error {
-	glog.Info("Got ping ", *m)
-	if err := m.Parse(); err != nil {
-		return err
-	}
+		fmt.Fprintf(w, "PONG!")
 
-	fmt.Fprintf(w, "PONG!")
-
-	return nil
-}
-
-func Register(b *bot.Bot) {
+		return nil
+	})
 }
