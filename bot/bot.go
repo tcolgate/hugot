@@ -40,28 +40,28 @@ import (
 
 // DefaultBot is a default instance of a bot
 var DefaultBot *Bot
-var DefaultMux *mux.Mux
-var DefaultCommands command.Set
 
 func init() {
 
-	http.Handle("/hugot", DefaultMux)
-	http.Handle("/hugot/", DefaultMux)
-
-	DefaultCommands = command.NewSet()
-
-	DefaultMux = mux.New("hugot", "")
-	DefaultMux.ToBot = DefaultCommands
-
-	DefaultCommands.MustAdd(help.New(DefaultMux))
-
 	DefaultBot = New()
+	DefaultBot.Mux = mux.New("hugot", "")
+
+	http.Handle("/hugot", DefaultBot.Mux)
+	http.Handle("/hugot/", DefaultBot.Mux)
+
+	DefaultBot.Commands = command.NewSet()
+
+	DefaultBot.Mux.ToBot = DefaultBot.Commands
+	DefaultBot.Commands.MustAdd(help.New(DefaultBot.Mux))
+
 	DefaultBot.Store = memory.New()
 
 }
 
 type Bot struct {
-	Store storage.Storer
+	Store    storage.Storer
+	Mux      *mux.Mux
+	Commands command.Set
 }
 
 func New() *Bot {
@@ -81,7 +81,7 @@ func (b *Bot) ListenAndServe(ctx context.Context, h hugot.Handler, a hugot.Adapt
 	ctx = hugot.NewAdapterContext(ctx, a)
 
 	if h == nil {
-		h = DefaultMux
+		h = b.Mux
 	}
 
 	an := fmt.Sprintf("%T", a)
@@ -152,27 +152,27 @@ func runBackgroundHandler(ctx context.Context, h hugot.BackgroundHandler, w hugo
 
 // Raw adds the provided handler to the DefaultMux
 func Raw(hs ...hugot.Handler) error {
-	return DefaultMux.Raw(hs...)
+	return DefaultBot.Mux.Raw(hs...)
 }
 
 // Background adds the provided handler to the DefaultMux
 func Background(hs ...hugot.BackgroundHandler) error {
-	return DefaultMux.Background(hs...)
+	return DefaultBot.Mux.Background(hs...)
 }
 
 // Hears adds the provided handler to the DefaultMux
 func Hears(hs ...hears.Hearer) error {
-	return DefaultMux.Hears(hs...)
+	return DefaultBot.Mux.Hears(hs...)
 }
 
 // HandleHTTP adds the provided handler to the DefaultMux
 func HandleHTTP(h hugot.WebHookHandler) {
-	DefaultMux.HandleHTTP(h)
+	DefaultBot.Mux.HandleHTTP(h)
 }
 
 // URL returns the base URL for the default Mux
 func URL() *url.URL {
-	return DefaultMux.URL()
+	return DefaultBot.Mux.URL()
 }
 
 // SetURL sets the base URL for web hooks.
@@ -180,13 +180,13 @@ func SetURL(b *url.URL) {
 	if b.Path != "" {
 		panic(errors.New("Can't set URL with path at the moment, sorry"))
 	}
-	DefaultMux.SetURL(b)
+	DefaultBot.Mux.SetURL(b)
 }
 
 func Command(c command.Commander) {
-	DefaultCommands.MustAdd(c)
+	DefaultBot.Commands.MustAdd(c)
 }
 
-func Commands() command.Set {
-	return DefaultCommands
+func (b *Bot) Command(c command.Commander) {
+	b.Commands.MustAdd(c)
 }

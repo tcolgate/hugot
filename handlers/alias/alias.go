@@ -191,5 +191,5 @@ func (am *aliasManager) listCmd(ctx context.Context, w hugot.ResponseWriter, m *
 }
 
 func Register() {
-	bot.DefaultMux.ToBot = New(bot.DefaultMux.ToBot, bot.DefaultCommands, bot.DefaultBot.Store)
+	bot.DefaultBot.Mux.ToBot = New(bot.DefaultBot.Mux.ToBot, bot.DefaultBot.Commands, bot.DefaultBot.Store)
 }
