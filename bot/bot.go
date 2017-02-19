@@ -42,11 +42,8 @@ import (
 var DefaultBot *Bot
 var DefaultMux *mux.Mux
 var DefaultCommands command.Set
-var DefaultStore storage.Storer
 
 func init() {
-
-	DefaultStore = memory.New()
 
 	http.Handle("/hugot", DefaultMux)
 	http.Handle("/hugot/", DefaultMux)
@@ -59,12 +56,12 @@ func init() {
 	DefaultCommands.MustAdd(help.New(DefaultMux))
 
 	DefaultBot = New()
-	DefaultBot.store = DefaultStore
+	DefaultBot.Store = memory.New()
 
 }
 
 type Bot struct {
-	store storage.Storer
+	Store storage.Storer
 }
 
 func New() *Bot {
@@ -131,7 +128,7 @@ func (b *Bot) ListenAndServe(ctx context.Context, h hugot.Handler, a hugot.Adapt
 	for {
 		select {
 		case mrw := <-mrws:
-			mrw.m.Store = prefix.New(b.store, []string{hn})
+			mrw.m.Store = prefix.New(b.Store, []string{hn})
 			go func(smrw) {
 				if err := h.ProcessMessage(ctx, mrw.w, mrw.m); err != nil {
 					mrw.w.Send(ctx, mrw.m.Replyf("%v\n", err))
@@ -192,12 +189,4 @@ func Command(c command.Commander) {
 
 func Commands() command.Set {
 	return DefaultCommands
-}
-
-func Store() storage.Storer {
-	return DefaultBot.Store()
-}
-
-func (b *Bot) Store() storage.Storer {
-	return b.store
 }

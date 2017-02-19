@@ -118,5 +118,5 @@ func (am *manager) Command(ctx context.Context, w hugot.ResponseWriter, m *comma
 }
 
 func Register() {
-	bot.DefaultMux.ToBot = New(bot.DefaultMux.ToBot, bot.DefaultCommands, bot.DefaultStore)
+	bot.DefaultMux.ToBot = New(bot.DefaultMux.ToBot, bot.DefaultCommands, bot.DefaultBot.Store)
 }

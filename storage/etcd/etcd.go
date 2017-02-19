@@ -2,60 +2,60 @@
 package etcd
 
 import (
-	"time"
+	"context"
 
-	redis "gopkg.in/redis.v5"
+	"github.com/coreos/etcd/clientv3"
 
 	"github.com/golang/glog"
 	"github.com/tcolgate/hugot/storage"
 )
 
 type Store struct {
+	cli *clientv3.Client
 }
 
-func New(opts *redis.Options) *Store {
-	return &Store{}
+func New(cli *clientv3.Client) *Store {
+	return &Store{cli}
 }
 
 // Get retries a key from the store
 func (s *Store) Get(key []string) (string, bool, error) {
-	val, err := s.cli.Get(storage.PathToKey(key)).Result()
+	val, err := s.cli.Get(context.Background(), storage.PathToKey(key))
 	if err != nil {
 		glog.Info(err)
-		return val, false, err
+		return "", false, err
 	}
 
-	return val, true, err
+	if val.Count == 0 {
+		return "", false, nil
+	}
+
+	return string(val.Kvs[0].Value), true, err
 }
 
 // List all items under the provided prefix
 func (s *Store) List(path []string) ([][]string, error) {
+	var err error
 	var paths [][]string
-	var cursor uint64
-	for {
-		var keys []string
-		var err error
-		keys, cursor, err = s.cli.Scan(cursor, storage.PathToKey(path)+"/*", 100).Result()
-		if err != nil {
-			return nil, err
-		}
-		for _, key := range keys {
-			paths = append(paths, storage.KeyToPath(key))
-		}
-		if cursor == 0 {
-			break
-		}
+	keys, err := s.cli.Get(context.Background(), storage.PathToKey(path), clientv3.WithPrefix())
+	if err != nil {
+		return nil, err
 	}
 
+	for _, k := range keys.Kvs {
+		paths = append(paths, storage.KeyToPath(string(k.Key)))
+	}
 	return paths, nil
 }
 
 // Set a key in the store
 func (s *Store) Set(path []string, value string) error {
-	return s.cli.Set(storage.PathToKey(path), value, 1000000*time.Hour).Err()
+	_, err := s.cli.Put(context.Background(), storage.PathToKey(path), value)
+	return err
 }
 
 // Unset a key in the store
 func (s *Store) Unset(path []string) error {
-	return s.cli.Del(storage.PathToKey(path)).Err()
+	_, err := s.cli.Delete(context.Background(), storage.PathToKey(path))
+	return err
 }
