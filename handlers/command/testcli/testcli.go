@@ -27,6 +27,7 @@ import (
 	"context"
 
 	"github.com/tcolgate/hugot"
+	"github.com/tcolgate/hugot/bot"
 	"github.com/tcolgate/hugot/handlers/command"
 )
 
@@ -99,4 +100,8 @@ func world2Command(ctx context.Context, w hugot.ResponseWriter, m *command.Messa
 
 	fmt.Fprint(w, "Deeper!")
 	return nil
+}
+
+func Register() {
+	bot.Command(New())
 }

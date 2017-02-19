@@ -30,17 +30,17 @@ import (
 	"context"
 
 	"github.com/prometheus/client_golang/prometheus"
-	bot "github.com/tcolgate/hugot"
 	"github.com/tcolgate/hugot/adapters/ssh"
+	bot "github.com/tcolgate/hugot/bot"
 
 	"github.com/tcolgate/hugot"
 
 	cssh "golang.org/x/crypto/ssh"
 
 	// Add some handlers
-	"github.com/tcolgate/hugot/handlers/ping"
-	"github.com/tcolgate/hugot/handlers/tableflip"
-	"github.com/tcolgate/hugot/handlers/testcli"
+	"github.com/tcolgate/hugot/handlers/command/ping"
+	"github.com/tcolgate/hugot/handlers/command/testcli"
+	"github.com/tcolgate/hugot/handlers/hears/tableflip"
 	"github.com/tcolgate/hugot/handlers/testweb"
 )
 
@@ -97,16 +97,16 @@ func main() {
 
 	a := ssh.New(*nick, listener, config)
 
-	hugot.HandleCommand(ping.New())
-	hugot.HandleCommand(testcli.New())
-	hugot.HandleHears(tableflip.New())
-	hugot.HandleHTTP(testweb.New())
+	ping.Register()
+	testcli.Register()
+	tableflip.Register()
+	testweb.Register()
 
-	hugot.HandleBackground(hugot.NewBackgroundHandler("test bg", "testing bg", bgHandler))
-	hugot.HandleHTTP(hugot.NewWebHookHandler("test", "test http", httpHandler))
+	bot.Background(hugot.NewBackgroundHandler("test bg", "testing bg", bgHandler))
+	bot.HandleHTTP(hugot.NewWebHookHandler("test", "test http", httpHandler))
 
 	u, _ := url.Parse("http://localhost:8080")
-	hugot.SetURL(u)
+	bot.SetURL(u)
 
 	http.Handle("/metrics", prometheus.Handler())
 	go http.ListenAndServe(":8081", nil)

@@ -26,14 +26,14 @@ import (
 	"context"
 
 	"github.com/golang/glog"
-	bot "github.com/tcolgate/hugot"
 	"github.com/tcolgate/hugot/adapters/slack"
+	"github.com/tcolgate/hugot/bot"
 
 	// Add some handlers
-	"github.com/tcolgate/hugot"
-	"github.com/tcolgate/hugot/handlers/ping"
-	"github.com/tcolgate/hugot/handlers/tableflip"
-	"github.com/tcolgate/hugot/handlers/testcli"
+
+	"github.com/tcolgate/hugot/handlers/command/ping"
+	"github.com/tcolgate/hugot/handlers/command/testcli"
+	"github.com/tcolgate/hugot/handlers/hears/tableflip"
 	"github.com/tcolgate/hugot/handlers/testweb"
 )
 
@@ -49,15 +49,15 @@ func main() {
 		glog.Fatal(err)
 	}
 
-	hugot.HandleCommand(ping.New())
-	hugot.HandleCommand(testcli.New())
-	hugot.HandleHears(tableflip.New())
+	ping.Register()
+	testcli.Register()
+	tableflip.Register()
 
 	wh := testweb.New()
-	hugot.HandleHTTP(wh)
+	bot.HandleHTTP(wh)
 
 	u, _ := url.Parse("http://localhost:8080")
-	hugot.SetURL(u)
+	bot.SetURL(u)
 
 	glog.Infof("webhook at %s", wh.URL())
 

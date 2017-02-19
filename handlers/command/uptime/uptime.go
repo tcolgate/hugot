@@ -25,6 +25,7 @@ import (
 	"context"
 
 	"github.com/tcolgate/hugot"
+	"github.com/tcolgate/hugot/bot"
 	"github.com/tcolgate/hugot/handlers/command"
 )
 
@@ -49,4 +50,8 @@ func New() command.Commander {
 
 			return nil
 		})
+}
+
+func Register() {
+	bot.Command(New())
 }

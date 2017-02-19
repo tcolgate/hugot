@@ -27,6 +27,7 @@ import (
 	"context"
 
 	"github.com/tcolgate/hugot"
+	"github.com/tcolgate/hugot/bot"
 	"github.com/tcolgate/hugot/handlers/hears"
 )
 
@@ -86,4 +87,8 @@ func Hears(ctx context.Context, w hugot.ResponseWriter, m *hugot.Message, ms [][
 	fmt.Fprint(w, unFlip)
 
 	return nil
+}
+
+func Register() {
+	bot.Hears(New())
 }

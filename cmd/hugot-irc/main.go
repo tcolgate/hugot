@@ -28,10 +28,10 @@ import (
 	// Add some handlers
 	"github.com/fluffle/goirc/client"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/tcolgate/hugot"
 	"github.com/tcolgate/hugot/adapters/irc"
-	"github.com/tcolgate/hugot/handlers/ping"
-	"github.com/tcolgate/hugot/handlers/tableflip"
+	"github.com/tcolgate/hugot/bot"
+	"github.com/tcolgate/hugot/handlers/command/ping"
+	"github.com/tcolgate/hugot/handlers/hears/tableflip"
 )
 
 var (
@@ -54,11 +54,11 @@ func main() {
 
 	a := irc.New(c, *ircchan)
 
-	hugot.HandleCommand(ping.New())
-	hugot.HandleHears(tableflip.New())
+	ping.Register()
+	tableflip.Register()
 
 	http.Handle("/metrics", prometheus.Handler())
 	go http.ListenAndServe(":8081", nil)
 
-	hugot.ListenAndServe(context.Background(), nil, a)
+	bot.ListenAndServe(context.Background(), nil, a)
 }

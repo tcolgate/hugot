@@ -51,3 +51,13 @@ type Adapter interface {
 	Sender
 	Receiver
 }
+
+// ChannelManager is implemented by adapters that allow us to manage channels
+type ChannelManager interface {
+	Adapter
+	Join(channel string) error
+	Invite(channel string, user string) error
+	CreateChannel(channel string) error
+	LeaveChannel(channel string) error
+	SetChannelTopic(channel, topic string)
+}

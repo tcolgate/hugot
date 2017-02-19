@@ -68,15 +68,6 @@ func main() {
 		glog.Fatal(err)
 	}
 
-	bot.Background(hugot.NewBackgroundHandler("test bg", "testing bg", bgHandler))
-	bot.HandleHTTP(hugot.NewWebHookHandler("test", "test http", httpHandler))
-
-	bot.Hears(tableflip.New())
-
-	bot.Command(testcli.New())
-	bot.Command(uptime.New())
-	bot.Command(ping.New())
-
 	redisOpts, err := goredis.ParseURL("redis://localhost:6379")
 	if err != nil {
 		glog.Fatal(err)
@@ -84,14 +75,20 @@ func main() {
 
 	bot.DefaultStore = redis.New(redisOpts)
 
-	bot.DefaultMux.ToBot = alias.New(bot.DefaultMux.ToBot, bot.DefaultCommands, bot.DefaultStore)
-	bot.DefaultMux.ToBot = roles.New(bot.DefaultMux.ToBot, bot.DefaultCommands, bot.DefaultStore)
+	tableflip.Register()
+	testcli.Register()
+	uptime.Register()
+	ping.Register()
+	alias.Register()
+	roles.Register()
 
+	http.Handle("/metrics", prometheus.Handler())
+	bot.Background(hugot.NewBackgroundHandler("test bg", "testing bg", bgHandler))
+	bot.HandleHTTP(hugot.NewWebHookHandler("test", "test http", httpHandler))
 	u, _ := url.Parse("http://localhost:8080")
 	bot.SetURL(u)
 
 	go bot.ListenAndServe(ctx, nil, a)
-	http.Handle("/metrics", prometheus.Handler())
 	go http.ListenAndServe(":8081", nil)
 
 	a.Main()

@@ -29,6 +29,7 @@ import (
 	"text/tabwriter"
 
 	"github.com/tcolgate/hugot"
+	"github.com/tcolgate/hugot/bot"
 	"github.com/tcolgate/hugot/handlers/command"
 	"github.com/tcolgate/hugot/handlers/help"
 	"github.com/tcolgate/hugot/scope"
@@ -187,4 +188,8 @@ func (am *aliasManager) listCmd(ctx context.Context, w hugot.ResponseWriter, m *
 	io.Copy(w, out)
 
 	return nil
+}
+
+func Register() {
+	bot.DefaultMux.ToBot = New(bot.DefaultMux.ToBot, bot.DefaultCommands, bot.Store())
 }

@@ -31,19 +31,19 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/prometheus/client_golang/prometheus"
-	bot "github.com/tcolgate/hugot"
 	"github.com/tcolgate/hugot/adapters/shell"
 	"github.com/tcolgate/hugot/adapters/ssh"
+	bot "github.com/tcolgate/hugot/bot"
 	cssh "golang.org/x/crypto/ssh"
 
 	"github.com/tcolgate/hugot"
 
 	// Add some handlers
-	"github.com/tcolgate/hugot/handlers/ping"
-	"github.com/tcolgate/hugot/handlers/tableflip"
-	"github.com/tcolgate/hugot/handlers/testcli"
+	"github.com/tcolgate/hugot/handlers/command/ping"
+	"github.com/tcolgate/hugot/handlers/command/testcli"
+	"github.com/tcolgate/hugot/handlers/command/uptime"
+	"github.com/tcolgate/hugot/handlers/hears/tableflip"
 	"github.com/tcolgate/hugot/handlers/testweb"
-	"github.com/tcolgate/hugot/handlers/uptime"
 )
 
 var nick = flag.String("nick", "minion", "Bot nick")
@@ -104,22 +104,20 @@ func main() {
 
 	a2 := ssh.New(*nick, listener, config)
 
-	hugot.HandleCommand(ping.New())
-	hugot.HandleCommand(uptime.New())
-	hugot.HandleCommand(testcli.New())
+	bot.Background(hugot.NewBackgroundHandler("test bg", "testing bg", bgHandler))
 
-	hugot.HandleHTTP(testweb.New())
+	ping.Register()
+	uptime.Register()
+	testcli.Register()
+	tableflip.Register()
 
-	hugot.HandleHears(tableflip.New())
-
-	hugot.HandleBackground(hugot.NewBackgroundHandler("test bg", "testing bg", bgHandler))
-	hugot.HandleHTTP(hugot.NewWebHookHandler("test", "test http", httpHandler))
-
+	testweb.Register()
+	http.Handle("/metrics", prometheus.Handler())
+	bot.HandleHTTP(hugot.NewWebHookHandler("test", "test http", httpHandler))
 	u, _ := url.Parse("http://localhost:8080")
-	hugot.SetURL(u)
+	bot.SetURL(u)
 
 	go bot.ListenAndServe(ctx, nil, a1, a2)
-	http.Handle("/metrics", prometheus.Handler())
 	go http.ListenAndServe(":8081", nil)
 
 	a1.Main()

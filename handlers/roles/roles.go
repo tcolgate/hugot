@@ -25,6 +25,7 @@ import (
 	"io"
 
 	"github.com/tcolgate/hugot"
+	"github.com/tcolgate/hugot/bot"
 	"github.com/tcolgate/hugot/handlers/command"
 	"github.com/tcolgate/hugot/handlers/help"
 	"github.com/tcolgate/hugot/storage"
@@ -114,4 +115,8 @@ func (am *manager) Describe() (string, string) {
 func (am *manager) Command(ctx context.Context, w hugot.ResponseWriter, m *command.Message) error {
 
 	return nil
+}
+
+func Register() {
+	bot.DefaultMux.ToBot = New(bot.DefaultMux.ToBot, bot.DefaultCommands, bot.DefaultStore)
 }

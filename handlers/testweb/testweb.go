@@ -60,3 +60,6 @@ func handleWeb(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Hello world")
 	fmt.Fprintf(rw, "Hello from world wide web")
 }
+
+func Register() {
+}

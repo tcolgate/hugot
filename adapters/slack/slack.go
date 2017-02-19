@@ -50,8 +50,9 @@ var (
 )
 
 type slack struct {
-	clientToken string
-	nick        string
+	appToken string
+	botToken string
+	nick     string
 
 	id   string
 	icon string
@@ -77,9 +78,6 @@ func New(token, nick string) (hugot.Adapter, error) {
 	}
 
 	s.api = client.New(token)
-	//if glog.V(3) {
-	//	s.api.SetDebug(true)
-	//}
 	s.cache = newCache(s.api)
 
 	s.info = client.Info{}
@@ -109,9 +107,6 @@ func New(token, nick string) (hugot.Adapter, error) {
 	go wsAPI.ManageConnection()
 
 	return &s, nil
-}
-
-func (s *slack) IsTextOnly() {
 }
 
 func (s *slack) Send(ctx context.Context, m *hugot.Message) {
