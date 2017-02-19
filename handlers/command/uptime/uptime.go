@@ -52,6 +52,7 @@ func New() command.Commander {
 		})
 }
 
+// Register installs this handler on  bot.DefaultBot
 func Register() {
 	bot.Command(New())
 }

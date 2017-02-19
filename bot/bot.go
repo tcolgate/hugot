@@ -42,7 +42,6 @@ import (
 var DefaultBot *Bot
 
 func init() {
-
 	DefaultBot = New()
 	DefaultBot.Mux = mux.New("hugot", "")
 
@@ -55,21 +54,23 @@ func init() {
 	DefaultBot.Commands.MustAdd(help.New(DefaultBot.Mux))
 
 	DefaultBot.Store = memory.New()
-
 }
 
+// Bot is the main type for implementing chat bots. They listen on one or more
+// adapters and pass messages to, and from handlers.
 type Bot struct {
 	Store    storage.Storer
 	Mux      *mux.Mux
 	Commands command.Set
 }
 
+// New creates a new bot.
 func New() *Bot {
 	b := &Bot{}
 	return b
 }
 
-// ListenAndServe
+// ListenAndServe runs the DefaultBot handler loop.
 func ListenAndServe(ctx context.Context, h hugot.Handler, a hugot.Adapter, as ...hugot.Adapter) {
 	DefaultBot.ListenAndServe(ctx, h, a, as...)
 }
@@ -150,32 +151,32 @@ func runBackgroundHandler(ctx context.Context, h hugot.BackgroundHandler, w hugo
 	}(ctx, h)
 }
 
-// Raw adds the provided handler to the DefaultMux
+// Raw adds the provided handler to the Mux of the DefaultBot.
 func Raw(hs ...hugot.Handler) error {
 	return DefaultBot.Mux.Raw(hs...)
 }
 
-// Background adds the provided handler to the DefaultMux
+// Background adds the provided handler to the Mux of the DefaultBot.
 func Background(hs ...hugot.BackgroundHandler) error {
 	return DefaultBot.Mux.Background(hs...)
 }
 
-// Hears adds the provided handler to the DefaultMux
+// Hears adds the provided handle to the Mux of the DefaultBotr.
 func Hears(hs ...hears.Hearer) error {
 	return DefaultBot.Mux.Hears(hs...)
 }
 
-// HandleHTTP adds the provided handler to the DefaultMux
+// HandleHTTP adds the provided handler to the Mux of the DefaultBot.
 func HandleHTTP(h hugot.WebHookHandler) {
 	DefaultBot.Mux.HandleHTTP(h)
 }
 
-// URL returns the base URL for the default Mux
+// URL returns the base URL for the Mux of the DefaultBot
 func URL() *url.URL {
 	return DefaultBot.Mux.URL()
 }
 
-// SetURL sets the base URL for web hooks.
+// SetURL sets the base URL for web hooks on the DefaultBot.
 func SetURL(b *url.URL) {
 	if b.Path != "" {
 		panic(errors.New("Can't set URL with path at the moment, sorry"))
@@ -183,10 +184,12 @@ func SetURL(b *url.URL) {
 	DefaultBot.Mux.SetURL(b)
 }
 
+// Command adds a CLI command to the DefaultBot
 func Command(c command.Commander) {
 	DefaultBot.Commands.MustAdd(c)
 }
 
+// Command adds a CLI command to the Bot
 func (b *Bot) Command(c command.Commander) {
 	b.Commands.MustAdd(c)
 }

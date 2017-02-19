@@ -89,6 +89,7 @@ func Hears(ctx context.Context, w hugot.ResponseWriter, m *hugot.Message, ms [][
 	return nil
 }
 
+// Register installs this handler on  bot.DefaultBot
 func Register() {
 	bot.Hears(New())
 }

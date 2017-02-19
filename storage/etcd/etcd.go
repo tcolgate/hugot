@@ -10,10 +10,12 @@ import (
 	"github.com/tcolgate/hugot/storage"
 )
 
+// Store is a hugot Storer that is backed by etcd v3
 type Store struct {
 	cli *clientv3.Client
 }
 
+// New creates anew etcdv3 store
 func New(cli *clientv3.Client) *Store {
 	return &Store{cli}
 }

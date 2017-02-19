@@ -24,6 +24,7 @@ import (
 	"net/http"
 
 	"github.com/tcolgate/hugot"
+	"github.com/tcolgate/hugot/bot"
 )
 
 // New create an instance of the example webhook handler.
@@ -61,5 +62,7 @@ func handleWeb(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(rw, "Hello from world wide web")
 }
 
+// Register installs this handler on  bot.DefaultBot
 func Register() {
+	bot.HandleHTTP(New())
 }

@@ -76,6 +76,7 @@ func (h *Alias) ProcessMessage(ctx context.Context, w hugot.ResponseWriter, m *h
 	return err
 }
 
+// Help implements a command.Help hanndler for the alias handler
 func (h *Alias) Help(ctx context.Context, w io.Writer, m *command.Message) error {
 	if hh, ok := h.up.(help.Helper); ok {
 		return hh.Help(ctx, w, m)
@@ -190,6 +191,7 @@ func (am *aliasManager) listCmd(ctx context.Context, w hugot.ResponseWriter, m *
 	return nil
 }
 
+// Register installs this handler on  bot.DefaultBot
 func Register() {
 	bot.DefaultBot.Mux.ToBot = New(bot.DefaultBot.Mux.ToBot, bot.DefaultBot.Commands, bot.DefaultBot.Store)
 }

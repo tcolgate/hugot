@@ -44,10 +44,12 @@ func New(up hugot.Handler, cs command.Set, s storage.Storer) *Handler {
 	return &Handler{cs: cs, up: up}
 }
 
+// Describe implements the Describer interface for the alias handler
 func (h *Handler) Describe() (string, string) {
 	return h.up.Describe()
 }
 
+// Help implements the command.Helper interfaace for the alias handler
 func (h *Handler) Help(ctx context.Context, w io.Writer, m *command.Message) error {
 	if hh, ok := h.up.(help.Helper); ok {
 		return hh.Help(ctx, w, m)
@@ -65,6 +67,7 @@ func (h *Handler) ProcessMessage(ctx context.Context, w hugot.ResponseWriter, m 
 	return h.up.ProcessMessage(nctx, w, m)
 }
 
+// FromContext retrieves a set of roles from the current context
 func FromContext(ctx context.Context) map[string]struct{} {
 	ri := ctx.Value(rolesCtxKey)
 	roles := ri.(map[string]struct{})
@@ -74,11 +77,14 @@ func FromContext(ctx context.Context) map[string]struct{} {
 	return roles
 }
 
+// Check verifies the the current user has the requested role
 func Check(ctx context.Context, role string) bool {
 	_, ok := FromContext(ctx)[role]
 	return ok
 }
 
+// CheckAny checks to see if the current user has any one of the
+// request roles.
 func CheckAny(ctx context.Context, want []string) bool {
 	roles := FromContext(ctx)
 
@@ -94,6 +100,7 @@ func CheckAny(ctx context.Context, want []string) bool {
 	return false
 }
 
+// CheckAll checks that the user has all of the request roles.
 func CheckAll(ctx context.Context, want []string) bool {
 	roles := FromContext(ctx)
 
@@ -117,6 +124,7 @@ func (am *manager) Command(ctx context.Context, w hugot.ResponseWriter, m *comma
 	return nil
 }
 
+// Register installs this handler on  bot.DefaultBot
 func Register() {
 	bot.DefaultBot.Mux.ToBot = New(bot.DefaultBot.Mux.ToBot, bot.DefaultBot.Commands, bot.DefaultBot.Store)
 }

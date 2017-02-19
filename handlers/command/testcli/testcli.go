@@ -102,6 +102,7 @@ func world2Command(ctx context.Context, w hugot.ResponseWriter, m *command.Messa
 	return nil
 }
 
+// Register installs this handler on  bot.DefaultBot
 func Register() {
 	bot.Command(New())
 }
