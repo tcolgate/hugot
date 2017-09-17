@@ -21,10 +21,7 @@ package testcli
 
 import (
 	"fmt"
-	"log"
 	"time"
-
-	"context"
 
 	"github.com/tcolgate/hugot"
 	"github.com/tcolgate/hugot/bot"
@@ -32,73 +29,52 @@ import (
 )
 
 type testCli struct {
-	command.Commander
-
-	cs  command.Set
-	wcs command.Set
+	attach *bool
+	e      *string
 }
 
 // New adds new testcli command handler
-func New() command.Commander {
-	t := &testCli{
-		cs: command.NewSet(
-			command.New("hello", "but hello to what", helloCommand),
-			command.New("world", "the whole thing", worldCommand)),
-		wcs: command.NewSet(
-			command.New("world", "deeper down the rabbit hole", world2Command)),
-	}
-
-	t.Commander = command.New("testcli", "test command line thing", t.Command)
-	return t
+func New() *command.Handler {
+	return command.New(&testCli{})
 }
 
-func (t *testCli) Command(ctx context.Context, w hugot.ResponseWriter, m *command.Message) error {
-	if err := m.Parse(); err != nil {
-		return err
-	}
+func (t *testCli) CommandSetup(root *command.Command) error {
+	tctx := *t
+	tctx.attach = root.Flags().BoolP("attach", "a", false, "use an attachment")
+	tctx.e = root.PersistentFlags().StringP("environment", "e", "staging", "where?")
 
-	log.Printf("I'm in here %#v", *m)
-	return t.cs.Command(ctx, w, m)
-}
+	root.Use = "testcli"
+	root.Short = "test command line thing"
+	root.Run = tctx.Command
 
-func helloCommand(ctx context.Context, w hugot.ResponseWriter, m *command.Message) error {
-	a := m.Bool("a", false, "use an attachment")
-	if err := m.Parse(); err != nil {
-		return err
+	wctx := &worldCtx{}
+	world := &command.Command{
+		Use:   "world",
+		Short: "do something else",
+		Run:   wctx.Command,
 	}
+	wctx.d = world.Flags().DurationP("duration", "d", 5*time.Second, "this long")
 
-	if !*a {
-		fmt.Print(w, "Hello")
-		return nil
-	}
-	r := m.Reply("")
-	r.Attachments = []hugot.Attachment{
-		{
-			Text:  "Hello",
-			Color: "good",
-		},
-	}
-	w.Send(ctx, r)
+	root.AddCommand(world)
+
 	return nil
 }
 
-func worldCommand(ctx context.Context, w hugot.ResponseWriter, m *command.Message) error {
-	if err := m.Parse(); err != nil {
-		return err
-	}
+type testCliCtx struct {
+	attach *bool
+}
+
+func (t *testCli) Command(cmd *command.Command, w hugot.ResponseWriter, m *hugot.Message, args []string) error {
+	fmt.Fprintf(w, "I'm in here %#v", *t.attach)
 	return nil
 }
 
-func world2Command(ctx context.Context, w hugot.ResponseWriter, m *command.Message) error {
-	_ = m.String("arg", "", "A string argument")
-	_ = m.Int("num", 0, "An int argument")
-	_ = m.Duration("time", 1*time.Hour, "A duration argument")
-	_ = m.Bool("v", false, "verbose")
-	if err := m.Parse(); err != nil {
-		return err
-	}
+type worldCtx struct {
+	d *time.Duration
+}
 
-	fmt.Fprint(w, "Deeper!")
+func (wc *worldCtx) Command(cmd *command.Command, w hugot.ResponseWriter, m *hugot.Message, args []string) error {
+	fmt.Fprintf(w, "in here: %#v", *wc.d)
 	return nil
 }
 

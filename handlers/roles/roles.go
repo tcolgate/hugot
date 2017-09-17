@@ -27,18 +27,18 @@ import (
 	"github.com/tcolgate/hugot"
 	"github.com/tcolgate/hugot/bot"
 	"github.com/tcolgate/hugot/handlers/command"
-	"github.com/tcolgate/hugot/handlers/help"
+	"github.com/tcolgate/hugot/handlers/mux"
 	"github.com/tcolgate/hugot/storage"
 )
 
 // Handler implements support for user roles
 type Handler struct {
 	up hugot.Handler
-	cs command.Set
+	cs command.CommandSet
 }
 
 // New creates a new roles handler.
-func New(up hugot.Handler, cs command.Set, s storage.Storer) *Handler {
+func New(up hugot.Handler, cs command.CommandSet, s storage.Storer) *Handler {
 	cs.MustAdd(&manager{})
 
 	return &Handler{cs: cs, up: up}
@@ -50,9 +50,9 @@ func (h *Handler) Describe() (string, string) {
 }
 
 // Help implements the command.Helper interfaace for the alias handler
-func (h *Handler) Help(ctx context.Context, w io.Writer, m *command.Message) error {
-	if hh, ok := h.up.(help.Helper); ok {
-		return hh.Help(ctx, w, m)
+func (h *Handler) Help(w io.Writer) error {
+	if hh, ok := h.up.(mux.Helper); ok {
+		return hh.Help(w)
 	}
 	return nil
 }
@@ -119,8 +119,13 @@ func (am *manager) Describe() (string, string) {
 	return "roles", "manage roles"
 }
 
-func (am *manager) Command(ctx context.Context, w hugot.ResponseWriter, m *command.Message) error {
-
+func (am *manager) Command(cmd *command.Command, w hugot.ResponseWriter, m *hugot.Message, args []string) error {
+	return nil
+}
+func (am *manager) CommandSetup(root *command.Command) error {
+	root.Use = "roles"
+	root.Short = "manager roles"
+	root.Run = am.Command
 	return nil
 }
 

@@ -31,7 +31,6 @@ import (
 	"github.com/tcolgate/hugot"
 	"github.com/tcolgate/hugot/handlers/command"
 	"github.com/tcolgate/hugot/handlers/hears"
-	"github.com/tcolgate/hugot/handlers/help"
 	"github.com/tcolgate/hugot/storage"
 	"github.com/tcolgate/hugot/storage/memory"
 	"github.com/tcolgate/hugot/storage/prefix"
@@ -263,79 +262,71 @@ func (mx *Mux) SetURL(b *url.URL) {
 	}
 }
 
-// Help will send help about all the handlers in the mux to the user
-func (mx *Mux) Help(ctx context.Context, w io.Writer, m *command.Message) error {
-	if len(m.Args()) > 0 {
-		return mx.cmdHelp(ctx, w, m)
-	}
+type Helper interface {
+	Help(io.Writer) error
+}
 
-	out := &bytes.Buffer{}
-	tw := new(tabwriter.Writer)
-	tw.Init(out, 0, 8, 1, '\t', 0)
-
-	if hh, ok := mx.ToBot.(help.Helper); ok {
-		hh.Help(ctx, w, m)
-	}
-
-	if len(mx.HearsHandlers) > 0 {
-		fmt.Fprintf(out, "Active hear handlers are patternss are:\n")
-		for r, hs := range mx.HearsHandlers {
-			for _, h := range hs {
-				n, d := h.Describe()
-				fmt.Fprintf(tw, "  %s\t`%s`\t - %s\n", n, r.String(), d)
-			}
-		}
-		tw.Flush()
-	}
-
-	if len(mx.BGHandlers) > 0 {
-		fmt.Fprintf(out, "Active background handlers are:\n")
-		for _, h := range mx.BGHandlers {
-			n, d := h.Describe()
-			fmt.Fprintf(tw, "  %s\t - %s\n", n, d)
-		}
-		tw.Flush()
-	}
-
-	if len(mx.RawHandlers) > 0 {
-		fmt.Fprintf(out, "Active raw handlers are:\n")
-		for _, h := range mx.RawHandlers {
-			n, d := h.Describe()
-			fmt.Fprintf(tw, "  %s\t - %s\n", n, d)
-		}
-		tw.Flush()
-	}
-
-	io.Copy(w, out)
+func (mx *Mux) cmdHelp(w io.Writer, args []string) error {
 	return nil
 }
 
-func (mx *Mux) cmdHelp(ctx context.Context, w io.Writer, m *command.Message) error {
-	cmd := m.Arg(1)
-
-	allhs := []hugot.Describer{}
-	for _, h := range mx.RawHandlers {
-		allhs = append(allhs, h)
-	}
-	for _, h := range mx.BGHandlers {
-		allhs = append(allhs, h)
-	}
-
-	for _, h := range allhs {
-		hn, desc := h.Describe()
-		if hn == cmd {
-			if hh, ok := h.(help.Helper); ok {
-				m.SetArgs(m.Args())
-				return hh.Help(ctx, w, m)
+func (mx *Mux) CommandSetup(cmd *command.Command) error {
+	cmd.Use = "help [command]"
+	cmd.Short = "provides description of handler usage"
+	cmd.SilenceErrors = true
+	cmd.SilenceUsage = true
+	cmd.Run = func(c *command.Command, w hugot.ResponseWriter, msg *hugot.Message, args []string) error {
+		out := &bytes.Buffer{}
+		if len(args) > 0 {
+			if err := mx.cmdHelp(out, args); err != nil {
+				return err
 			}
-			fmt.Fprintln(w, desc)
+			fmt.Fprint(w, out.String())
+			return command.ErrSkipHears
 		}
-	}
 
-	if hh, ok := mx.ToBot.(help.Helper); ok {
-		m.SetArgs(m.Args())
-		return hh.Help(ctx, w, m)
-	}
+		tw := new(tabwriter.Writer)
+		tw.Init(out, 0, 8, 1, '\t', 0)
 
+		if hh, ok := mx.ToBot.(Helper); ok {
+			hh.Help(tw)
+		}
+
+		if len(mx.HearsHandlers) > 0 {
+			fmt.Fprintf(out, "Active hear handlers are patternss are:\n")
+			for r, hs := range mx.HearsHandlers {
+				for _, h := range hs {
+					n, d := h.Describe()
+					fmt.Fprintf(tw, "  %s\t`%s`\t - %s\n", n, r.String(), d)
+				}
+			}
+			tw.Flush()
+			fmt.Fprintln(tw)
+		}
+
+		if len(mx.BGHandlers) > 0 {
+			fmt.Fprintf(out, "Active background handlers are:\n")
+			for _, h := range mx.BGHandlers {
+				n, d := h.Describe()
+				fmt.Fprintf(tw, "  %s\t - %s\n", n, d)
+			}
+			tw.Flush()
+			fmt.Fprintln(tw)
+		}
+
+		if len(mx.RawHandlers) > 0 {
+			fmt.Fprintf(out, "Active raw handlers are:\n")
+			for _, h := range mx.RawHandlers {
+				n, d := h.Describe()
+				fmt.Fprintf(tw, "  %s\t - %s\n", n, d)
+			}
+			tw.Flush()
+			fmt.Fprintln(tw)
+		}
+
+		fmt.Fprint(w, out.String())
+
+		return command.ErrSkipHears
+	}
 	return nil
 }

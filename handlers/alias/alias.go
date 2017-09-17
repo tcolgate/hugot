@@ -31,7 +31,7 @@ import (
 	"github.com/tcolgate/hugot"
 	"github.com/tcolgate/hugot/bot"
 	"github.com/tcolgate/hugot/handlers/command"
-	"github.com/tcolgate/hugot/handlers/help"
+	"github.com/tcolgate/hugot/handlers/mux"
 	"github.com/tcolgate/hugot/scope"
 	"github.com/tcolgate/hugot/storage"
 	"github.com/tcolgate/hugot/storage/prefix"
@@ -42,13 +42,13 @@ import (
 // Alias implements alias support for use by Mux
 type Alias struct {
 	up hugot.Handler
-	cs command.Set
+	cs command.CommandSet
 	s  storage.Storer
 }
 
 // New creates a new alias handler and registers the alias command
 // with the the Mux, to permit users to manage their aliases.
-func New(up hugot.Handler, cs command.Set, s storage.Storer) hugot.Handler {
+func New(up hugot.Handler, cs command.CommandSet, s storage.Storer) hugot.Handler {
 	store := prefix.New(s, []string{"aliases"})
 	cs.MustAdd(&aliasManager{store})
 
@@ -77,9 +77,9 @@ func (h *Alias) ProcessMessage(ctx context.Context, w hugot.ResponseWriter, m *h
 }
 
 // Help implements a command.Help hanndler for the alias handler
-func (h *Alias) Help(ctx context.Context, w io.Writer, m *command.Message) error {
-	if hh, ok := h.up.(help.Helper); ok {
-		return hh.Help(ctx, w, m)
+func (h *Alias) Help(w io.Writer) error {
+	if hh, ok := h.up.(mux.Helper); ok {
+		return hh.Help(w)
 	}
 	return nil
 }
@@ -109,59 +109,73 @@ type aliasManager struct {
 	s storage.Storer
 }
 
-func (am *aliasManager) Describe() (string, string) {
-	return "alias", "manage command aliases"
+func (am *aliasManager) CommandSetup(root *command.Command) error {
+	root.Use = "alias"
+	root.Short = "manager aliases"
+
+	var aCtx aliasContext
+	aCtx.s = am.s
+	aCtx.g = root.Flags().BoolP("global", "g", false, "Create alias globally for all users on all channels")
+	aCtx.c = root.Flags().BoolP("channel", "c", false, "Create alias for current channel only")
+	aCtx.u = root.Flags().BoolP("user", "u", false, "Create alias private for your user only")
+	aCtx.cu = root.Flags().BoolP("channel-user", "C", false, "Create alias private for your user, only on this channel")
+	aCtx.d = root.Flags().BoolP("delete", "d", false, "Delete an alias")
+
+	root.Run = aCtx.Command
+
+	return nil
 }
 
-func (am *aliasManager) Command(ctx context.Context, w hugot.ResponseWriter, m *command.Message) error {
-	g := m.Bool("g", false, "Create alias globally for all users on all channels")
-	c := m.Bool("c", false, "Create alias for current channel only")
-	u := m.Bool("u", false, "Create alias private for your user only")
-	cu := m.Bool("cu", false, "Create alias private for your user, only on this channel")
-	d := m.Bool("d", false, "Delete an alias")
-	if err := m.Parse(); err != nil {
-		return err
-	}
+type aliasContext struct {
+	s storage.Storer
 
+	g  *bool
+	c  *bool
+	u  *bool
+	cu *bool
+	d  *bool
+}
+
+func (am *aliasContext) Command(cmd *command.Command, w hugot.ResponseWriter, m *hugot.Message, args []string) error {
 	var store storage.Storer
 	switch {
-	case !*g && !*c && !*u && !*cu:
-		if len(m.Args()) > 0 {
+	case !*am.g && !*am.c && !*am.u && !*am.cu:
+		if len(args) > 0 {
 			return errors.New("to set an alias, select a scope")
 		}
-		return am.listCmd(ctx, w, m)
-	case *g && !*c && !*u && !*cu:
+		return am.listCmd(w, m)
+	case *am.g && !*am.c && !*am.u && !*am.cu:
 		store = scoped.New(am.s, scope.Global, m.Channel, m.From)
-	case !*g && *c && !*u && !*cu:
+	case !*am.g && *am.c && !*am.u && !*am.cu:
 		store = scoped.New(am.s, scope.Channel, m.Channel, m.From)
-	case !*g && !*c && *u && !*cu:
+	case !*am.g && !*am.c && *am.u && !*am.cu:
 		store = scoped.New(am.s, scope.User, m.Channel, m.From)
-	case !*g && !*c && !*u && *cu:
+	case !*am.g && !*am.c && !*am.u && *am.cu:
 		store = scoped.New(am.s, scope.ChannelUser, m.Channel, m.From)
 	default:
 		return fmt.Errorf("Specify exactly one of -g, -c, -cu or -u")
 	}
 
-	if *d {
-		if len(m.Args()) != 1 {
+	if *am.d {
+		if len(args) != 1 {
 			return errors.New("delete requires one alias name to delete")
 		}
-		return store.Unset([]string{m.Arg(0)})
+		return store.Unset(args)
 	}
 
-	if len(m.Args()) < 2 {
+	if len(args) < 2 {
 		return errors.New("you must provide an alias name and expansion")
 	}
 
 	strs := []string{}
-	for _, str := range m.Args()[1:] {
+	for _, str := range args[1:] {
 		strs = append(strs, fmt.Sprintf("%q", str))
 	}
 
-	return store.Set([]string{m.Arg(0)}, strings.Join(strs, " "))
+	return store.Set([]string{args[0]}, strings.Join(strs, " "))
 }
 
-func (am *aliasManager) listCmd(ctx context.Context, w hugot.ResponseWriter, m *command.Message) error {
+func (am *aliasContext) listCmd(w hugot.ResponseWriter, m *hugot.Message) error {
 	out := &bytes.Buffer{}
 	for _, s := range scope.Order {
 		store := scoped.New(am.s, s, m.Channel, m.From)

@@ -83,9 +83,9 @@ func main() {
 	bot.DefaultBot.Store = etcd.New(etcdcli)
 
 	tableflip.Register()
+	ping.Register()
 	testcli.Register()
 	uptime.Register()
-	ping.Register()
 	alias.Register()
 	roles.Register()
 
