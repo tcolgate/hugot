@@ -29,7 +29,6 @@ import (
 	"github.com/tcolgate/hugot"
 	"github.com/tcolgate/hugot/handlers/command"
 	"github.com/tcolgate/hugot/handlers/hears"
-	"github.com/tcolgate/hugot/handlers/help"
 	"github.com/tcolgate/hugot/handlers/mux"
 	"github.com/tcolgate/hugot/storage"
 	"github.com/tcolgate/hugot/storage/memory"
@@ -48,10 +47,10 @@ func init() {
 	http.Handle("/hugot", DefaultBot.Mux)
 	http.Handle("/hugot/", DefaultBot.Mux)
 
-	DefaultBot.Commands = command.NewSet()
+	DefaultBot.Commands = command.CommandSet{}
 
 	DefaultBot.Mux.ToBot = DefaultBot.Commands
-	DefaultBot.Commands.MustAdd(help.New(DefaultBot.Mux))
+	DefaultBot.Commands.MustAdd(DefaultBot.Mux)
 
 	DefaultBot.Store = memory.New()
 }
@@ -61,7 +60,7 @@ func init() {
 type Bot struct {
 	Store    storage.Storer
 	Mux      *mux.Mux
-	Commands command.Set
+	Commands command.CommandSet
 }
 
 // New creates a new bot.
@@ -185,11 +184,11 @@ func SetURL(b *url.URL) {
 }
 
 // Command adds a CLI command to the DefaultBot
-func Command(c command.Commander) {
+func Command(c *command.Handler) {
 	DefaultBot.Commands.MustAdd(c)
 }
 
 // Command adds a CLI command to the Bot
-func (b *Bot) Command(c command.Commander) {
+func (b *Bot) Command(c *command.Handler) {
 	b.Commands.MustAdd(c)
 }

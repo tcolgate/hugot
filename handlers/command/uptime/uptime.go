@@ -22,8 +22,6 @@ import (
 	"fmt"
 	"time"
 
-	"context"
-
 	"github.com/tcolgate/hugot"
 	"github.com/tcolgate/hugot/bot"
 	"github.com/tcolgate/hugot/handlers/command"
@@ -36,20 +34,17 @@ func init() {
 }
 
 // New creaates a new command that responds with the uptime of the bot.
-func New() command.Commander {
-	return command.New(
-		"uptime",
-		"report the uptime of the bot",
-
-		func(ctx context.Context, w hugot.ResponseWriter, m *command.Message) error {
-			if err := m.Parse(); err != nil {
-				return err
-			}
-
+func New() *command.Handler {
+	return command.NewFunc(func(root *command.Command) error {
+		root.Use = "uptime"
+		root.Short = "report the uptime of the bot"
+		root.Run = func(cmd *command.Command, w hugot.ResponseWriter, m *hugot.Message, args []string) error {
 			fmt.Fprintf(w, "I've been running for %s", time.Since(start))
 
 			return nil
-		})
+		}
+		return nil
+	})
 }
 
 // Register installs this handler on  bot.DefaultBot

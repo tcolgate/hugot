@@ -21,28 +21,19 @@ package ping
 import (
 	"fmt"
 
-	"context"
-
-	"github.com/golang/glog"
 	"github.com/tcolgate/hugot"
 	"github.com/tcolgate/hugot/bot"
 	"github.com/tcolgate/hugot/handlers/command"
 )
 
 // New creates a new ping command that responds with a Pong
-func New() command.Commander {
-	return command.New("ping", "replies Pong to any ping", func(ctx context.Context, w hugot.ResponseWriter, m *command.Message) error {
-		if err := m.Parse(); err != nil {
-			return err
+func New() *command.Handler {
+	return command.NewFunc(func(root *command.Command) error {
+		root.Use = "ping"
+		root.Run = func(cmd *command.Command, w hugot.ResponseWriter, msg *hugot.Message, args []string) error {
+			fmt.Fprintf(w, "PONG!")
+			return nil
 		}
-
-		glog.Info("Got ping ", *m)
-		if err := m.Parse(); err != nil {
-			return err
-		}
-
-		fmt.Fprintf(w, "PONG!")
-
 		return nil
 	})
 }
