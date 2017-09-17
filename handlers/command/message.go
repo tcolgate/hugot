@@ -2,10 +2,24 @@ package command
 
 import (
 	"bytes"
+	"flag"
 	"strings"
 
 	shellwords "github.com/mattn/go-shellwords"
+	"github.com/tcolgate/hugot"
 )
+
+// Message is a message struct adapted for handling command style
+// operations
+type Message struct {
+	*hugot.Message
+	*flag.FlagSet
+	// FlatOut is a bytes.Buffer containing the output of any
+	// actions on the FlagSet
+	FlagOut *bytes.Buffer
+
+	args []string
+}
 
 // Copy can be used to copy a command.Mesage
 func (m *Message) Copy() *Message {

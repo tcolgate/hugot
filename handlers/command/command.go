@@ -20,18 +20,6 @@ const (
 	ctxPathKey ctxKey = iota
 )
 
-// Message is a message struct adapted for handling command style
-// operations
-type Message struct {
-	*hugot.Message
-	*flag.FlagSet
-	// FlatOut is a bytes.Buffer containing the output of any
-	// actions on the FlagSet
-	FlagOut *bytes.Buffer
-
-	args []string
-}
-
 // Func describes the calling convention for CommandHandler
 type Func func(ctx context.Context, w hugot.ResponseWriter, m *Message) error
 
