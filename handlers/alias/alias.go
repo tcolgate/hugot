@@ -42,13 +42,13 @@ import (
 // Alias implements alias support for use by Mux
 type Alias struct {
 	up hugot.Handler
-	cs command.CommandSet
+	cs command.Set
 	s  storage.Storer
 }
 
 // New creates a new alias handler and registers the alias command
 // with the the Mux, to permit users to manage their aliases.
-func New(up hugot.Handler, cs command.CommandSet, s storage.Storer) hugot.Handler {
+func New(up hugot.Handler, cs command.Set, s storage.Storer) hugot.Handler {
 	store := prefix.New(s, []string{"aliases"})
 	cs.MustAdd(&aliasManager{store})
 
@@ -136,7 +136,7 @@ type aliasContext struct {
 	d  *bool
 }
 
-func (am *aliasContext) Command(cmd *command.Command, w hugot.ResponseWriter, m *hugot.Message, args []string) error {
+func (am *aliasContext) Command(ctx context.Context, w hugot.ResponseWriter, m *hugot.Message, args []string) error {
 	var store storage.Storer
 	switch {
 	case !*am.g && !*am.c && !*am.u && !*am.cu:

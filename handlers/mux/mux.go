@@ -275,7 +275,7 @@ func (mx *Mux) CommandSetup(cmd *command.Command) error {
 	cmd.Short = "provides description of handler usage"
 	cmd.SilenceErrors = true
 	cmd.SilenceUsage = true
-	cmd.Run = func(c *command.Command, w hugot.ResponseWriter, msg *hugot.Message, args []string) error {
+	cmd.Run = func(ctx context.Context, w hugot.ResponseWriter, msg *hugot.Message, args []string) error {
 		out := &bytes.Buffer{}
 		if len(args) > 0 {
 			if err := mx.cmdHelp(out, args); err != nil {

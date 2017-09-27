@@ -19,6 +19,7 @@
 package ping
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/tcolgate/hugot"
@@ -30,7 +31,7 @@ import (
 func New() *command.Handler {
 	return command.NewFunc(func(root *command.Command) error {
 		root.Use = "ping"
-		root.Run = func(cmd *command.Command, w hugot.ResponseWriter, msg *hugot.Message, args []string) error {
+		root.Run = func(ctx context.Context, w hugot.ResponseWriter, msg *hugot.Message, args []string) error {
 			fmt.Fprintf(w, "PONG!")
 			return nil
 		}

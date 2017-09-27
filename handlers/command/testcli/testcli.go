@@ -20,6 +20,7 @@
 package testcli
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -64,7 +65,7 @@ type testCliCtx struct {
 	attach *bool
 }
 
-func (t *testCli) Command(cmd *command.Command, w hugot.ResponseWriter, m *hugot.Message, args []string) error {
+func (t *testCli) Command(ctx context.Context, w hugot.ResponseWriter, m *hugot.Message, args []string) error {
 	fmt.Fprintf(w, "I'm in here %#v", *t.attach)
 	return nil
 }
@@ -73,7 +74,7 @@ type worldCtx struct {
 	d *time.Duration
 }
 
-func (wc *worldCtx) Command(cmd *command.Command, w hugot.ResponseWriter, m *hugot.Message, args []string) error {
+func (wc *worldCtx) Command(ctx context.Context, w hugot.ResponseWriter, m *hugot.Message, args []string) error {
 	fmt.Fprintf(w, "in here: %#v", *wc.d)
 	return nil
 }

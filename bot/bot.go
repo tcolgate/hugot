@@ -47,7 +47,7 @@ func init() {
 	http.Handle("/hugot", DefaultBot.Mux)
 	http.Handle("/hugot/", DefaultBot.Mux)
 
-	DefaultBot.Commands = command.CommandSet{}
+	DefaultBot.Commands = command.Set{}
 
 	DefaultBot.Mux.ToBot = DefaultBot.Commands
 	DefaultBot.Commands.MustAdd(DefaultBot.Mux)
@@ -60,7 +60,7 @@ func init() {
 type Bot struct {
 	Store    storage.Storer
 	Mux      *mux.Mux
-	Commands command.CommandSet
+	Commands command.Set
 }
 
 // New creates a new bot.

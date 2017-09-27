@@ -19,6 +19,7 @@
 package uptime
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -38,7 +39,7 @@ func New() *command.Handler {
 	return command.NewFunc(func(root *command.Command) error {
 		root.Use = "uptime"
 		root.Short = "report the uptime of the bot"
-		root.Run = func(cmd *command.Command, w hugot.ResponseWriter, m *hugot.Message, args []string) error {
+		root.Run = func(ctx context.Context, w hugot.ResponseWriter, m *hugot.Message, args []string) error {
 			fmt.Fprintf(w, "I've been running for %s", time.Since(start))
 
 			return nil

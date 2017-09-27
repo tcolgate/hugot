@@ -26,65 +26,47 @@ func init() {
 	cobra.EnablePrefixMatching = true
 }
 
-type CmdRunFunc func(cmd *Command, w hugot.ResponseWriter, msg *hugot.Message, args []string) error
-type cobraFuncE func(*cobra.Command, []string) error
-
-type Command struct {
-	Use     string
-	Short   string
-	Long    string
-	Example string
-
-	PersistentPreRun  CmdRunFunc
-	PreRun            CmdRunFunc
-	Run               CmdRunFunc
-	PostRun           CmdRunFunc
-	PersistentPostRun CmdRunFunc
-	SilenceErrors     bool
-	SilenceUsage      bool
-
-	flags  *pflag.FlagSet
-	pflags *pflag.FlagSet
-
-	cob         *cobra.Command
-	subcommands []*Command
-}
-
-func (cmd *Command) Flags() *pflag.FlagSet {
-	if cmd.flags == nil {
-		cob := &cobra.Command{Use: cmd.Use}
-		cmd.flags = pflag.NewFlagSet(cob.Name(), pflag.ContinueOnError)
-	}
-	return cmd.flags
-}
-
-func (cmd *Command) PersistentFlags() *pflag.FlagSet {
-	if cmd.pflags == nil {
-		cob := &cobra.Command{Use: cmd.Use}
-		cmd.pflags = pflag.NewFlagSet(cob.Name(), pflag.ContinueOnError)
-	}
-	return cmd.pflags
-}
-
-func (cmd *Command) AddCommand(scmd *Command) {
-	cmd.subcommands = append(cmd.subcommands, scmd)
-}
-
+// Handler is responsible for executing a user command. Before the command
+// is run the Setupper is called to build the new command. The command
+// is the executed. This allows the setup stage to capture flag information
+// that is needed when the command itself is execture
 type Handler struct {
-	CommandSetupper
+	Setupper
 }
 
-type CommandSetupper interface {
+// New creates a handler from any CommnadSetupper
+func New(f Setupper) *Handler {
+	return &Handler{f}
+}
+
+// NewFunc creates a Handler from a SetupFunc
+func NewFunc(f func(cmd *Command) error) *Handler {
+	return &Handler{SetupFunc(f)}
+}
+
+// Setupper describes a Handler that can set up the context for a user
+// executing a function. It should set up the provided function as required,
+// and ensure the Run functions capture any required flag arguments
+type Setupper interface {
 	CommandSetup(*Command) error
 }
 
-type CommandSet map[string]*Handler
+// RunFunc is a specification for a function to be run in response to a user
+// executing a command. msg is the original message, args is the set of arguments.
+// And flags required should be setup during Setup dunction for the handler
+type RunFunc func(ctx context.Context, w hugot.ResponseWriter, msg *hugot.Message, args []string) error
+type cobraFuncE func(*cobra.Command, []string) error
 
-func (h CommandSet) Describe() (string, string) {
+// Set is a collection of command to be run by a mux.Mux
+type Set map[string]*Handler
+
+// Describe implements the hugot.Handler interface for a Set
+func (cs Set) Describe() (string, string) {
 	return "commands", "blah"
 }
 
-func (h CommandSet) ProcessMessage(ctx context.Context, w hugot.ResponseWriter, m *hugot.Message) error {
+// ProcessMessage implements the hugot.Handler interface for a Set
+func (cs Set) ProcessMessage(ctx context.Context, w hugot.ResponseWriter, m *hugot.Message) error {
 	var err error
 	var args []string
 
@@ -98,7 +80,7 @@ func (h CommandSet) ProcessMessage(ctx context.Context, w hugot.ResponseWriter, 
 
 	var names []string
 	var matches []*Handler
-	for n, h := range h {
+	for n, h := range cs {
 		if strings.HasPrefix(n, args[0]) {
 			names = append(names, n)
 			matches = append(matches, h)
@@ -110,21 +92,23 @@ func (h CommandSet) ProcessMessage(ctx context.Context, w hugot.ResponseWriter, 
 	}
 
 	if len(names) > 1 {
-		return fmt.Errorf("Ambigious commands, pick: ", strings.Join(names, ", "))
+		return fmt.Errorf("Ambigious commands, pick: %v", strings.Join(names, ", "))
 	}
 
 	m.Text = strings.Join(args[1:], " ")
 	return matches[0].ProcessMessage(ctx, w, m)
 }
 
-func (cs CommandSet) MustAdd(c CommandSetupper) {
-	root := Command{}
-	c.CommandSetup(&root)
-	cob := cmdToCobra(&root, nil, nil)
+// MustAdd adds a command to a Set
+func (cs Set) MustAdd(c Setupper) {
+	root := &Command{}
+	c.CommandSetup(root)
+	cob := root.cmdToCobra(context.TODO(), nil, nil)
 	cs[cob.Name()] = &Handler{c}
 }
 
-func (cs CommandSet) Help(w io.Writer) error {
+// Help implements mux.Helper for the command.CommandSet
+func (cs Set) Help(w io.Writer) error {
 	out := &bytes.Buffer{}
 
 	tw := new(tabwriter.Writer)
@@ -143,12 +127,12 @@ func (cs CommandSet) Help(w io.Writer) error {
 
 	fmt.Fprintf(out, "Commands:\n")
 	for _, cn := range cns {
-		root := Command{}
-		err := cs[cn].CommandSetup(&root)
+		root := &Command{}
+		err := cs[cn].CommandSetup(root)
 		if err != nil {
 			continue
 		}
-		cob := cmdToCobra(&root, nil, nil)
+		cob := root.cmdToCobra(context.TODO(), nil, nil)
 
 		fmt.Fprintf(tw, "  %s\t - %s\n", cob.Name(), cob.Short)
 	}
@@ -160,61 +144,105 @@ func (cs CommandSet) Help(w io.Writer) error {
 	return nil
 }
 
+// Command describe a CLI type command that can be executed by a user.
+// It a wrapper around an github.com/spf13/cobra command
+type Command struct {
+	Use     string
+	Short   string
+	Long    string
+	Example string
+
+	PersistentPreRun  RunFunc
+	PreRun            RunFunc
+	Run               RunFunc
+	PostRun           RunFunc
+	PersistentPostRun RunFunc
+	SilenceErrors     bool
+	SilenceUsage      bool
+
+	flags  *pflag.FlagSet
+	pflags *pflag.FlagSet
+
+	cob         *cobra.Command
+	subcommands []*Command
+}
+
+// Flags returns the active FlagSet for this command
+func (cmd *Command) Flags() *pflag.FlagSet {
+	if cmd.flags == nil {
+		cob := &cobra.Command{Use: cmd.Use}
+		cmd.flags = pflag.NewFlagSet(cob.Name(), pflag.ContinueOnError)
+	}
+	return cmd.flags
+}
+
+// PersistentFlags returns the persistent  FlagSet for this command
+func (cmd *Command) PersistentFlags() *pflag.FlagSet {
+	if cmd.pflags == nil {
+		cob := &cobra.Command{Use: cmd.Use}
+		cmd.pflags = pflag.NewFlagSet(cob.Name(), pflag.ContinueOnError)
+	}
+	return cmd.pflags
+}
+
+// AddCommand adds a new subcommand to this command
+func (cmd *Command) AddCommand(scmd *Command) {
+	cmd.subcommands = append(cmd.subcommands, scmd)
+}
+
+// SetupFunc takes a Command and is expected to configure it
+// to provide some command functionality
+type SetupFunc func(*Command) error
+
+// CommandSetup you to use a CommandSetupFunc directly as a Handler
+func (f SetupFunc) CommandSetup(cmd *Command) error {
+	return f(cmd)
+}
+
+// Describe implements hugot.Handler for the command handler
 func (h *Handler) Describe() (string, string) {
-	root := Command{}
-	h.CommandSetup(&root)
-	cob := cmdToCobra(&root, nil, nil)
+	root := &Command{}
+	h.CommandSetup(root)
+	cob := root.cmdToCobra(context.TODO(), nil, nil)
 
 	return cob.Name(), cob.Short
 }
 
-func New(f CommandSetupper) *Handler {
-	return &Handler{f}
-}
-
-func NewFunc(f func(cmd *Command) error) *Handler {
-	return &Handler{CommandSetupFunc(f)}
-}
-
-type CommandSetupFunc func(*Command) error
-
-func (f CommandSetupFunc) CommandSetup(cmd *Command) error {
-	return f(cmd)
-}
-
+// ProcessMessage implements hugot.Handler for the command handler
 func (h *Handler) ProcessMessage(ctx context.Context, w hugot.ResponseWriter, m *hugot.Message) error {
 	var err error
 
-	root := Command{cob: &cobra.Command{}}
-	h.CommandSetup(&root)
+	root := &Command{cob: &cobra.Command{}}
+	h.CommandSetup(root)
 
 	args, err := shellwords.Parse(m.Text)
 	if err != nil {
 		return ErrBadCLI
 	}
 
-	cob := cmdToCobra(&root, w, m)
+	cob := root.cmdToCobra(ctx, w, m)
 	cob.SetOutput(w)
 	cob.SetArgs(args)
 
 	for _, c := range root.subcommands {
-		cob.AddCommand(cmdToCobra(c, w, m))
+		cob.AddCommand(c.cmdToCobra(ctx, w, m))
 	}
 
 	return cob.Execute()
 }
 
+// Help implements mux.Helper for the command.Handler
 func (h *Handler) Help(w io.Writer) error {
-	root := Command{}
-	h.CommandSetup(&root)
+	root := &Command{}
+	h.CommandSetup(root)
 
-	cob := cmdToCobra(&root, nil, nil)
+	cob := root.cmdToCobra(context.TODO(), nil, nil)
 	cob.SetOutput(w)
 
 	return root.cob.Help()
 }
 
-func cmdToCobra(cmd *Command, w hugot.ResponseWriter, msg *hugot.Message) *cobra.Command {
+func (cmd *Command) cmdToCobra(ctx context.Context, w hugot.ResponseWriter, msg *hugot.Message) *cobra.Command {
 	cob := &cobra.Command{
 		Use:           cmd.Use,
 		Short:         cmd.Short,
@@ -223,23 +251,31 @@ func cmdToCobra(cmd *Command, w hugot.ResponseWriter, msg *hugot.Message) *cobra
 		SilenceErrors: cmd.SilenceErrors,
 		SilenceUsage:  cmd.SilenceUsage,
 	}
-	cob.PersistentPreRunE = cmd.PersistentPreRun.makeCobraRunEFunc(cmd, w, msg)
-	cob.PreRunE = cmd.PreRun.makeCobraRunEFunc(cmd, w, msg)
-	cob.RunE = cmd.Run.makeCobraRunEFunc(cmd, w, msg)
-	cob.PostRunE = cmd.PostRun.makeCobraRunEFunc(cmd, w, msg)
-	cob.PersistentPostRunE = cmd.PersistentPostRun.makeCobraRunEFunc(cmd, w, msg)
+	cob.PersistentPreRunE = cmd.PersistentPreRun.makeCobraRunEFunc(ctx, cmd, w, msg)
+	cob.PreRunE = cmd.PreRun.makeCobraRunEFunc(ctx, cmd, w, msg)
+	cob.RunE = cmd.Run.makeCobraRunEFunc(ctx, cmd, w, msg)
+	cob.PostRunE = cmd.PostRun.makeCobraRunEFunc(ctx, cmd, w, msg)
+	cob.PersistentPostRunE = cmd.PersistentPostRun.makeCobraRunEFunc(ctx, cmd, w, msg)
 	cob.Flags().AddFlagSet(cmd.flags)
 	cob.PersistentFlags().AddFlagSet(cmd.pflags)
 
 	return cob
 }
 
-func (cf CmdRunFunc) makeCobraRunEFunc(cmd *Command, w hugot.ResponseWriter, msg *hugot.Message) cobraFuncE {
+type cmdContextKey string
+
+// FromContext retrieves the Command the caused the calling function be be called
+func FromContext(ctx context.Context) *Command {
+	return ctx.Value(cmdContextKey("command")).(*Command)
+}
+
+func (cf RunFunc) makeCobraRunEFunc(ctx context.Context, cmd *Command, w hugot.ResponseWriter, msg *hugot.Message) cobraFuncE {
 	if cf == nil {
 		return nil
 	}
+	ctx = context.WithValue(ctx, cmdContextKey("command"), cmd)
 	return func(cob *cobra.Command, args []string) error {
 		cob.SetOutput(w)
-		return cf(cmd, w, msg, args)
+		return cf(ctx, w, msg, args)
 	}
 }

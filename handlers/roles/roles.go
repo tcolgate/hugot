@@ -34,11 +34,11 @@ import (
 // Handler implements support for user roles
 type Handler struct {
 	up hugot.Handler
-	cs command.CommandSet
+	cs command.Set
 }
 
 // New creates a new roles handler.
-func New(up hugot.Handler, cs command.CommandSet, s storage.Storer) *Handler {
+func New(up hugot.Handler, cs command.Set, s storage.Storer) *Handler {
 	cs.MustAdd(&manager{})
 
 	return &Handler{cs: cs, up: up}
@@ -119,7 +119,7 @@ func (am *manager) Describe() (string, string) {
 	return "roles", "manage roles"
 }
 
-func (am *manager) Command(cmd *command.Command, w hugot.ResponseWriter, m *hugot.Message, args []string) error {
+func (am *manager) Command(ctx context.Context, w hugot.ResponseWriter, m *hugot.Message, args []string) error {
 	return nil
 }
 func (am *manager) CommandSetup(root *command.Command) error {
