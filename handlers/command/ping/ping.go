@@ -31,6 +31,7 @@ import (
 func New() *command.Handler {
 	return command.NewFunc(func(root *command.Command) error {
 		root.Use = "ping"
+		root.Short = "confirms the bot is running"
 		root.Run = func(ctx context.Context, w hugot.ResponseWriter, msg *hugot.Message, args []string) error {
 			fmt.Fprintf(w, "PONG!")
 			return nil
