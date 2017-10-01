@@ -98,7 +98,7 @@ func New(apiurl, team, email, password string) (hugot.Adapter, error) {
 		return nil, fmt.Errorf("Could not find team %s", team)
 	}
 
-	pat := fmt.Sprintf("^@%s[:,]? (.*)", c.user.Username)
+	pat := fmt.Sprintf("(?m)^(!|(@?%s)[:,]? )(.*)", c.user.Username)
 	c.dirPat = regexp.MustCompile(pat)
 
 	wsurl, _ := url.Parse(apiurl)
@@ -231,7 +231,7 @@ func (s *mma) mmMsgToHugot(me *mm.WebSocketEvent) *hugot.Message {
 	dirMatch := s.dirPat.FindStringSubmatch(p.Message)
 	if len(dirMatch) > 1 && len(dirMatch[1]) > 0 {
 		tobot = true
-		p.Message = strings.Trim(dirMatch[1], " ")
+		p.Message = strings.Trim(dirMatch[3], " ")
 	}
 
 	ch, err := s.cache.GetChannel(p.ChannelId)
