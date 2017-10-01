@@ -55,6 +55,7 @@ type mma struct {
 	client *mm.Client4
 	user   *mm.User
 	team   *mm.Team
+	cache  *cache
 
 	id   string
 	icon string
@@ -91,6 +92,7 @@ func New(apiurl, team, email, password string) (hugot.Adapter, error) {
 			break
 		}
 	}
+	c.cache = newCache(c.client, c.team)
 
 	if c.team == nil {
 		return nil, fmt.Errorf("Could not find team %s", team)
@@ -115,7 +117,13 @@ func New(apiurl, team, email, password string) (hugot.Adapter, error) {
 
 func (s *mma) Send(ctx context.Context, m *hugot.Message) {
 	post := &mm.Post{}
-	post.ChannelId = m.Channel
+	ch, err := s.cache.GetChannelByName(m.Channel)
+	if err != nil {
+		glog.Errorf("could not look up channel, %v", err)
+		ch = &mm.Channel{Id: m.Channel}
+	}
+
+	post.ChannelId = ch.Id
 	post.Message = m.Text
 	var attchs []*mm.SlackAttachment
 	for _, a := range m.Attachments {
@@ -160,8 +168,8 @@ func (s *mma) Send(ctx context.Context, m *hugot.Message) {
 		post.AddProp("attachments", attchs)
 	}
 
-	if _, err := s.client.CreatePost(post); err != nil {
-		glog.Infoln(err.Error)
+	if _, resp := s.client.CreatePost(post); resp.Error != nil {
+		glog.Errorf("error creating post, %v", resp.Error)
 	}
 }
 
@@ -196,14 +204,6 @@ func (s *mma) mmMsgToHugot(me *mm.WebSocketEvent) *hugot.Message {
 
 	p := mm.PostFromJson(strings.NewReader(me.Data["post"].(string)))
 
-	var uname string
-
-	uname = p.UserId
-	if uname == "" {
-		glog.Infoln("could not resolve username")
-		return nil
-	}
-
 	ct, ok := me.Data["channel_type"]
 	if !ok {
 		glog.Infoln("channel_type not set")
@@ -234,11 +234,24 @@ func (s *mma) mmMsgToHugot(me *mm.WebSocketEvent) *hugot.Message {
 		p.Message = strings.Trim(dirMatch[1], " ")
 	}
 
+	ch, err := s.cache.GetChannel(p.ChannelId)
+	if err != nil {
+		glog.Errorf("could not resolve incoming channel name")
+		ch = &mm.Channel{Id: p.ChannelId}
+	}
+
+	user, err := s.cache.GetUser(p.UserId)
+	if err != nil {
+		glog.Errorf("could not resolve incoming user name")
+		user = &mm.User{Id: p.UserId, Username: p.UserId}
+		return nil
+	}
+
 	m := hugot.Message{
-		Channel: p.ChannelId,
-		From:    uname,
+		Channel: ch.Id,
+		UserID:  user.Id,
+		From:    user.Username,
 		To:      "",
-		UserID:  p.UserId,
 		Private: private,
 		ToBot:   tobot,
 		Text:    p.Message,
