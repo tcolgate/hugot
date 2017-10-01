@@ -83,7 +83,7 @@ func stringFromTemplate(tmpls *template.Template, name string, data interface{})
 		out := bytes.Buffer{}
 		err := tmpls.ExecuteTemplate(&out, name, data)
 		if err != nil {
-			glog.Infof("error expanding title template, ", err.Error())
+			glog.Infof("error expanding %v template, %v", name, err.Error())
 			return ""
 		}
 		return out.String()
