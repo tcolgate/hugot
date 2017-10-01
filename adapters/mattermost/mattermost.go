@@ -31,7 +31,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/tcolgate/hugot"
 
-	mm "github.com/mattermost/platform/model"
+	mm "github.com/mattermost/mattermost-server/model"
 )
 
 var (
@@ -52,7 +52,7 @@ var (
 type mma struct {
 	email string
 
-	client *mm.Client
+	client *mm.Client4
 	user   *mm.User
 	team   *mm.Team
 
@@ -70,22 +70,22 @@ type mma struct {
 
 // New creates a new adapter that communicates with Mattermost
 func New(apiurl, team, email, password string) (hugot.Adapter, error) {
-	c := mma{client: mm.NewClient(apiurl)}
+	c := mma{client: mm.NewAPIv4Client(apiurl)}
 
-	lr, err := c.client.Login(email, password)
-	if err != nil {
-		return nil, err
+	user, resp := c.client.Login(email, password)
+	if resp.Error != nil {
+		return nil, resp.Error
 	}
 
-	c.user = lr.Data.(*mm.User)
+	c.user = user
 
-	ilr, err := c.client.GetInitialLoad()
-	if err != nil {
-		return nil, err
+	teams, resp := c.client.GetAllTeams("", 0, 10000)
+	glog.Infof("Teams: %#v", resp)
+	if resp.Error != nil {
+		return nil, resp.Error
 	}
 
-	c.initialLoad = ilr.Data.(*mm.InitialLoad)
-	for _, t := range c.initialLoad.Teams {
+	for _, t := range teams {
 		if t.Name == team {
 			c.team = t
 			break
@@ -96,16 +96,16 @@ func New(apiurl, team, email, password string) (hugot.Adapter, error) {
 		return nil, fmt.Errorf("Could not find team %s", team)
 	}
 
-	c.client.SetTeamId(c.team.Id)
-
 	pat := fmt.Sprintf("^@%s[:,]? (.*)", c.user.Username)
 	c.dirPat = regexp.MustCompile(pat)
 
 	wsurl, _ := url.Parse(apiurl)
 	wsurl.Scheme = "ws"
-	c.ws, err = mm.NewWebSocketClient(wsurl.String(), c.client.AuthToken)
-	if err != nil {
-		return nil, err
+
+	var resperr *mm.AppError
+	c.ws, resperr = mm.NewWebSocketClient4(wsurl.String(), c.client.AuthToken)
+	if resperr != nil {
+		return nil, resperr
 	}
 
 	c.ws.Listen()
@@ -117,7 +117,7 @@ func (s *mma) Send(ctx context.Context, m *hugot.Message) {
 	post := &mm.Post{}
 	post.ChannelId = m.Channel
 	post.Message = m.Text
-	var attchs []map[string]interface{}
+	var attchs []*mm.SlackAttachment
 	for _, a := range m.Attachments {
 		switch a.Color {
 		case "good":
@@ -130,40 +130,38 @@ func (s *mma) Send(ctx context.Context, m *hugot.Message) {
 		if a.Fallback == "" {
 			a.Fallback = a.Text
 		}
-		flds := []map[string]interface{}{}
+		flds := []*mm.SlackAttachmentField{}
 		for _, f := range a.Fields {
-			flds = append(flds, map[string]interface{}{
-				"title": f.Title,
-				"value": f.Value,
-				"short": f.Short,
-			})
+			flds = append(flds, &mm.SlackAttachmentField{
+				Title: f.Title,
+				Value: f.Value,
+				Short: f.Short,
+			},
+			)
 		}
 		attchs = append(attchs,
-			map[string]interface{}{
-				"fallback":       a.Fallback,
-				"pretext":        a.Pretext,
-				"text":           a.Text,
-				"title":          a.Title,
-				"title_link":     a.TitleLink,
-				"image_url":      a.ImageURL,
-				"thumb_url":      a.ThumbURL,
-				"color":          a.Color,
-				"author_name":    a.AuthorName,
-				"author_subname": a.AuthorSubname,
-				"author_link":    a.AuthorLink,
-				"author_icon":    a.AuthorIcon,
-				"fields":         flds,
+			&mm.SlackAttachment{
+				Fallback:   a.Fallback,
+				Pretext:    a.Pretext,
+				Text:       a.Text,
+				Title:      a.Title,
+				TitleLink:  a.TitleLink,
+				ImageURL:   a.ImageURL,
+				ThumbURL:   a.ThumbURL,
+				Color:      a.Color,
+				AuthorName: a.AuthorName,
+				AuthorLink: a.AuthorLink,
+				AuthorIcon: a.AuthorIcon,
+				Fields:     flds,
 			})
 	}
 
 	if len(attchs) > 0 {
-		post.Type = mm.POST_SLACK_ATTACHMENT
-		post.Props = make(map[string]interface{})
-		post.Props["attachments"] = attchs
+		post.AddProp("attachments", attchs)
 	}
 
 	if _, err := s.client.CreatePost(post); err != nil {
-		glog.Infoln(err.Error())
+		glog.Infoln(err.Error)
 	}
 }
 
