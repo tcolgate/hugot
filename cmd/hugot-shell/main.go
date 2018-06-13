@@ -27,12 +27,10 @@ import (
 
 	"context"
 
-	"github.com/coreos/etcd/clientv3"
 	"github.com/golang/glog"
 	"github.com/tcolgate/hugot/adapters/shell"
 	"github.com/tcolgate/hugot/bot"
-	"github.com/tcolgate/hugot/storage/etcd"
-	//"github.com/tcolgate/hugot/storage/redis"
+	"github.com/tcolgate/hugot/storage/redis"
 
 	"github.com/tcolgate/hugot"
 
@@ -44,7 +42,7 @@ import (
 	"github.com/tcolgate/hugot/handlers/command/uptime"
 	"github.com/tcolgate/hugot/handlers/hears/tableflip"
 	"github.com/tcolgate/hugot/handlers/roles"
-	//goredis "gopkg.in/redis.v5"
+	goredis "gopkg.in/redis.v5"
 )
 
 var nick = flag.String("nick", "minion", "Bot nick")
@@ -69,17 +67,11 @@ func main() {
 		glog.Fatal(err)
 	}
 
-	//redisOpts, err := goredis.ParseURL("redis://localhost:6379")
-	//if err != nil {
-	//		glog.Fatal(err)
-	//	}
-	//	bot.DefaultStore = etcd.New(redisOpts)
-
-	etcdcli, err := clientv3.New(clientv3.Config{
-		Endpoints:   []string{"localhost:2379", "localhost:22379", "localhost:32379"},
-		DialTimeout: 5 * time.Second,
-	})
-	bot.DefaultBot.Store = etcd.New(etcdcli)
+	redisOpts, err := goredis.ParseURL("redis://localhost:6379")
+	if err != nil {
+		glog.Fatal(err)
+	}
+	bot.DefaultBot.Store = redis.New(redisOpts)
 
 	tableflip.Register()
 	ping.Register()
