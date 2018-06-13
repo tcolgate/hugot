@@ -28,25 +28,9 @@ import (
 	"context"
 
 	"github.com/golang/glog"
-	"github.com/prometheus/client_golang/prometheus"
 	"github.com/tcolgate/hugot"
 
 	client "github.com/nlopes/slack"
-)
-
-var (
-	slackLatency = prometheus.NewGauge(prometheus.GaugeOpts{
-		Name: "slack_latency_reports_millisecond",
-		Help: "Latency of Slack in milliseconds.",
-	})
-	slackMessagesTx = prometheus.NewCounter(prometheus.CounterOpts{
-		Name: "slack_messages_sent_total",
-		Help: "Number of slack messages sent.",
-	})
-	slackMessagesRx = prometheus.NewCounter(prometheus.CounterOpts{
-		Name: "slack_messages_received_total",
-		Help: "Number of slack messages received.",
-	})
 )
 
 type slack struct {

@@ -29,7 +29,6 @@ import (
 
 	"context"
 
-	"github.com/prometheus/client_golang/prometheus"
 	"github.com/tcolgate/hugot/adapters/ssh"
 	bot "github.com/tcolgate/hugot/bot"
 
@@ -108,7 +107,6 @@ func main() {
 	u, _ := url.Parse("http://localhost:8080")
 	bot.SetURL(u)
 
-	http.Handle("/metrics", prometheus.Handler())
 	go http.ListenAndServe(":8081", nil)
 
 	bot.ListenAndServe(ctx, nil, a)

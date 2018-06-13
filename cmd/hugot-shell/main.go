@@ -29,7 +29,6 @@ import (
 
 	"github.com/coreos/etcd/clientv3"
 	"github.com/golang/glog"
-	"github.com/prometheus/client_golang/prometheus"
 	"github.com/tcolgate/hugot/adapters/shell"
 	"github.com/tcolgate/hugot/bot"
 	"github.com/tcolgate/hugot/storage/etcd"
@@ -89,7 +88,6 @@ func main() {
 	alias.Register()
 	roles.Register()
 
-	http.Handle("/metrics", prometheus.Handler())
 	bot.Background(hugot.NewBackgroundHandler("test bg", "testing bg", bgHandler))
 	bot.HandleHTTP(hugot.NewWebHookHandler("test", "test http", httpHandler))
 	u, _ := url.Parse("http://localhost:8080")

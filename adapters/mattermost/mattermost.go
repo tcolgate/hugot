@@ -28,25 +28,9 @@ import (
 	"context"
 
 	"github.com/golang/glog"
-	"github.com/prometheus/client_golang/prometheus"
 	"github.com/tcolgate/hugot"
 
 	mm "github.com/mattermost/mattermost-server/model"
-)
-
-var (
-	mmLatency = prometheus.NewGauge(prometheus.GaugeOpts{
-		Name: "mm_latency_reports_millisecond",
-		Help: "Latency of Slack in milliseconds.",
-	})
-	mmMessagesTx = prometheus.NewCounter(prometheus.CounterOpts{
-		Name: "mm_messages_sent_total",
-		Help: "Number of mm messages sent.",
-	})
-	mmMessagesRx = prometheus.NewCounter(prometheus.CounterOpts{
-		Name: "mm_messages_received_total",
-		Help: "Number of mm messages received.",
-	})
 )
 
 type mma struct {

@@ -30,7 +30,6 @@ import (
 	"context"
 
 	"github.com/golang/glog"
-	"github.com/prometheus/client_golang/prometheus"
 	"github.com/tcolgate/hugot/adapters/shell"
 	"github.com/tcolgate/hugot/adapters/ssh"
 	bot "github.com/tcolgate/hugot/bot"
@@ -112,7 +111,6 @@ func main() {
 	tableflip.Register()
 
 	testweb.Register()
-	http.Handle("/metrics", prometheus.Handler())
 	bot.HandleHTTP(hugot.NewWebHookHandler("test", "test http", httpHandler))
 	u, _ := url.Parse("http://localhost:8080")
 	bot.SetURL(u)

@@ -112,7 +112,6 @@ func (w *responseWriter) SetSender(s Sender) {
 
 // Send implements the Sender interface
 func (w *responseWriter) Send(ctx context.Context, m *Message) {
-	messagesTx.WithLabelValues(w.an, m.Channel, m.From).Inc()
 	w.snd.Send(ctx, m)
 }
 

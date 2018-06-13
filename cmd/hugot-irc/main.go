@@ -27,7 +27,6 @@ import (
 
 	// Add some handlers
 	"github.com/fluffle/goirc/client"
-	"github.com/prometheus/client_golang/prometheus"
 	"github.com/tcolgate/hugot/adapters/irc"
 	"github.com/tcolgate/hugot/bot"
 	"github.com/tcolgate/hugot/handlers/command/ping"
@@ -57,7 +56,6 @@ func main() {
 	ping.Register()
 	tableflip.Register()
 
-	http.Handle("/metrics", prometheus.Handler())
 	go http.ListenAndServe(":8081", nil)
 
 	bot.ListenAndServe(context.Background(), nil, a)
