@@ -45,7 +45,7 @@ type mma struct {
 	icon string
 
 	dirPat      *regexp.Regexp
-	api         *mm.Client
+	api         *mm.Client4
 	initialLoad *mm.InitialLoad
 
 	ws *mm.WebSocketClient
