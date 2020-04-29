@@ -3,7 +3,7 @@ package slack
 import (
 	"sync"
 
-	client "github.com/nlopes/slack"
+	client "github.com/slack-go/slack"
 )
 
 type cache struct {

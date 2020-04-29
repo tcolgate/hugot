@@ -15,8 +15,7 @@
 // You should have received a copy of the GNU General Public License
 // along with hugot.  If not, see <http://www.gnu.org/licenses/>.
 
-// Package mattermost implements an adapter for http://mm.com using
-// github.com/nlopes/mm
+// Package mattermost implements an adapter for http://mm.com
 package mattermost
 
 import (

@@ -16,7 +16,7 @@
 // along with hugot.  If not, see <http://www.gnu.org/licenses/>.
 
 // Package slack implements an adapter for http://slack.com using
-// github.com/nlopes/slack
+// github.com/slack-go/slack
 package slack
 
 import (
@@ -30,7 +30,7 @@ import (
 	"github.com/golang/glog"
 	"github.com/tcolgate/hugot"
 
-	client "github.com/nlopes/slack"
+	client "github.com/slack-go/slack"
 )
 
 type slack struct {
@@ -41,9 +41,11 @@ type slack struct {
 	id   string
 	icon string
 
-	dirPat *regexp.Regexp
-	api    *client.Client
-	info   client.Info
+	dirPat   *regexp.Regexp
+	api      *client.Client
+	info     client.Info
+	users    []client.User
+	channels []client.Channel
 	*cache
 
 	sender   chan *hugot.Message
@@ -65,10 +67,10 @@ func New(token, nick string) (hugot.Adapter, error) {
 	s.cache = newCache(s.api)
 
 	s.info = client.Info{}
-	s.info.Users, _ = s.api.GetUsers()
-	s.info.Channels, _ = s.api.GetChannels(false)
+	s.users, _ = s.api.GetUsers()
+	s.channels, _ = s.api.GetChannels(false)
 
-	for _, u := range s.info.Users {
+	for _, u := range s.users {
 		if u.Name == nick {
 			s.id = u.ID
 			s.icon = u.Profile.Image72
@@ -108,16 +110,17 @@ func (s *slack) Send(ctx context.Context, m *hugot.Message) {
 			glog.Infof("sending, %#v to %#v", *m, chanout)
 		}
 
-		p := client.NewPostMessageParameters()
-		p.AsUser = false
 		attchs := []client.Attachment{}
 		for _, a := range m.Attachments {
 			attchs = append(attchs, client.Attachment(a))
 		}
-		p.Attachments = attchs
-		p.Username = s.nick
-		p.IconURL = s.icon // permit overriding this
-		_, _, err = s.api.PostMessage(m.Channel, m.Text, p)
+		_, _, err = s.api.PostMessage(
+			m.Channel,
+			client.MsgOptionText(m.Text, false),
+			client.MsgOptionAsUser(false),
+			client.MsgOptionIconURL(s.icon),
+			client.MsgOptionUsername(s.nick),
+			client.MsgOptionAttachments(attchs...))
 		if err != nil {
 			glog.Errorf("error sending, %#v", err.Error())
 		}

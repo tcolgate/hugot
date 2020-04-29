@@ -24,7 +24,7 @@ import (
 	"text/template"
 
 	"github.com/golang/glog"
-	"github.com/nlopes/slack"
+	"github.com/slack-go/slack"
 	"github.com/tcolgate/hugot/storage"
 )
 

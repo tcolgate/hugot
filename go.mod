@@ -1,5 +1,7 @@
 module github.com/tcolgate/hugot
 
+go 1.14
+
 require (
 	github.com/chzyer/logex v1.1.10 // indirect
 	github.com/chzyer/readline v0.0.0-20180603132655-2972be24d48e
@@ -28,7 +30,7 @@ require (
 	github.com/mattermost/mattermost-server v5.3.0+incompatible
 	github.com/mattn/go-shellwords v1.0.3
 	github.com/nicksnyder/go-i18n v1.10.0 // indirect
-	github.com/nlopes/slack v0.2.0
+	github.com/nlopes/slack v0.6.0
 	github.com/onsi/ginkgo v1.8.0 // indirect
 	github.com/onsi/gomega v1.5.0 // indirect
 	github.com/pborman/uuid v0.0.0-20180909234540-25cd46ecac86 // indirect
@@ -37,6 +39,7 @@ require (
 	github.com/prometheus/client_golang v0.9.2 // indirect
 	github.com/prometheus/client_model v0.0.0-20190129233127-fd36f4220a90 // indirect
 	github.com/sirupsen/logrus v1.4.0 // indirect
+	github.com/slack-go/slack v0.6.4
 	github.com/soheilhy/cmux v0.1.4 // indirect
 	github.com/spf13/cobra v0.0.3
 	github.com/spf13/pflag v1.0.1
